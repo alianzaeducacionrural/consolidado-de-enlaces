@@ -1,0 +1,21 @@
+{
+  "_comentario": "Copia este archivo como data/accounts.local.json (queda fuera de Git) o pega este JSON en la variable ACCOUNTS_JSON de Vercel. La clave es el nombre exacto del repo.",
+  "seguimiento-egresados": {
+    "nota": "Los coordinadores entran con su correo institucional.",
+    "cuentas": [
+      {
+        "rol": "Administrador",
+        "usuario": "admin@ejemplo.org",
+        "clave": "••••••••",
+        "url": "https://seguimiento-egresados.vercel.app/login",
+        "notas": "Puede crear y editar egresados."
+      },
+      {
+        "rol": "Consulta",
+        "usuario": "consulta@ejemplo.org",
+        "clave": "••••••••",
+        "notas": "Solo lectura de reportes."
+      }
+    ]
+  }
+}
