@@ -40,6 +40,8 @@
     rotate: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6.5 8-6.5s8 2.5 8 6.5"/>',
     note: '<path d="M5 4h14v11l-5 5H5Z"/><path d="M14 20v-5h5"/><path d="M9 9h6M9 13h4"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   };
   const svg = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${P[name] || P.link}</svg>`;
 
@@ -90,6 +92,8 @@
     document.documentElement.dataset.tema = t;
     const b = $("#btnTema .ic");
     if (b) b.innerHTML = svg(t === "dark" ? "sun" : "moon");
+    const l = $("#temaLbl");
+    if (l) l.textContent = t === "dark" ? "Modo claro" : "Modo oscuro";
     if (persistir) localStorage.setItem(LS_TEMA, t);
   }
 
@@ -146,23 +150,27 @@
   const esRepoNuevo = (t) => !!t._nuevoRepo;
 
   /* ---------- render ---------- */
+  function cerrarRail() { document.body.classList.remove("rail-abierto"); $("#railScrim").hidden = true; }
+
   function render() {
-    renderIndice();
+    renderRail();
     renderLista();
     const conEnlace = TOOLS.filter((t) => t.enlaces.length).length;
-    $("#pieInfo").textContent = `${TOOLS.length} herramientas · ${conEnlace} con enlace directo`;
-    $("#brandSub").textContent = `Alianza Educación Rural · ${TOOLS.length} herramientas`;
+    $("#tituloCat").textContent = filtro === "Todas" ? "Directorio" : filtro;
+    const total = filtro === "Todas" ? TOOLS.length : TOOLS.filter((t) => t.categoria === filtro).length;
+    $("#pieInfo").textContent = `${total} ${total === 1 ? "herramienta" : "herramientas"} · ${conEnlace} con enlace`;
   }
 
-  function renderIndice() {
+  function renderRail() {
     const cont = $("#chips"); cont.textContent = "";
     const counts = new Map();
     TOOLS.forEach((t) => counts.set(t.categoria, (counts.get(t.categoria) || 0) + 1));
     const cats = [...counts.keys()].sort((a, b) => rankCat(CAT)(a) - rankCat(CAT)(b));
-    const item = (label, on, n, go) => el("button", { class: "indice-item" + (on ? " on" : ""), type: "button", onclick: go },
-      el("span", {}, label), n != null ? el("span", { class: "n" }, String(n)) : null);
-    const pick = (c) => { filtro = c; localStorage.setItem(LS_FILTRO, c); render(); };
+    const pick = (c) => { filtro = c; localStorage.setItem(LS_FILTRO, c); cerrarRail(); render(); document.querySelector(".contenido").scrollIntoView({ block: "start" }); };
+    const item = (label, on, n, go) => el("button", { class: "rail-item" + (on ? " on" : ""), type: "button", onclick: go },
+      el("span", { class: "rail-item-txt" }, label), el("span", { class: "rail-item-n" }, String(n)));
     cont.append(item("Todas", filtro === "Todas", TOOLS.length, () => pick("Todas")));
+    cont.append(el("div", { class: "rail-sep" }));
     cats.forEach((c) => cont.append(item(c, filtro === c, counts.get(c), () => pick(c))));
   }
 
@@ -180,56 +188,54 @@
     const vis = TOOLS.filter(coincide);
     $("#vacio").hidden = vis.length > 0;
 
-    const grupos = new Map();
-    for (const t of vis) { if (!grupos.has(t.categoria)) grupos.set(t.categoria, []); grupos.get(t.categoria).push(t); }
-    const ordenadas = [...grupos.keys()].sort((a, b) => rankCat(CAT)(a) - rankCat(CAT)(b));
+    const orden = (arr) => arr.sort((a, b) => (b.destacado - a.destacado) || a.nombre.localeCompare(b.nombre, "es"));
 
-    for (const cat of ordenadas) {
-      const items = grupos.get(cat).sort((a, b) => (b.destacado - a.destacado) || a.nombre.localeCompare(b.nombre, "es"));
-      cont.append(el("section", { class: "grupo" },
-        el("div", { class: "grupo-cab" },
-          el("h2", {}, cat),
-          el("span", { class: "n" }, String(items.length)),
-          el("span", { class: "rule" })),
-        el("div", { class: "grid" }, items.map(tarjeta))));
+    if (filtro === "Todas" && !busqueda.trim()) {
+      const grupos = new Map();
+      for (const t of vis) { if (!grupos.has(t.categoria)) grupos.set(t.categoria, []); grupos.get(t.categoria).push(t); }
+      [...grupos.keys()].sort((a, b) => rankCat(CAT)(a) - rankCat(CAT)(b)).forEach((cat, i) => {
+        cont.append(el("section", { class: "grupo" },
+          el("div", { class: "grupo-cab" },
+            el("span", { class: "grupo-num" }, roman(i + 1)),
+            el("h2", {}, cat),
+            el("span", { class: "grupo-n" }, String(grupos.get(cat).length))),
+          el("div", { class: "filas" }, orden(grupos.get(cat)).map(fila))));
+      });
+    } else {
+      cont.append(el("div", { class: "filas" }, orden(vis).map(fila)));
     }
   }
 
-  function tarjeta(t) {
-    const acc = el("div", { class: "card-acc" },
-      el("button", {
-        class: "icobtn" + (tieneCred(t.id) ? " on" : ""), type: "button",
-        title: tieneCred(t.id) ? "Ver claves guardadas" : "Guardar usuario y contraseña",
-        "aria-label": "Claves", onclick: () => modalClavesTool(t),
-      }, icon("key")),
-      el("button", {
-        class: "icobtn", type: "button", title: "Editar esta herramienta",
-        "aria-label": "Editar", onclick: () => modalCatalogo(t.id),
-      }, icon("pencil")),
-    );
+  const roman = (n) => ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"][n] || String(n);
 
-    const meta = el("div", { class: "card-tag-row" }, el("span", { class: "dot", "data-e": t.estado }, t.estado));
-    if (t.categoria === "Por clasificar") meta.append(el("span", { class: "pin-clasif" }, "por clasificar"));
+  function fila(t) {
+    const acc = el("div", { class: "reg-acc" },
+      el("button", { class: "icobtn" + (tieneCred(t.id) ? " on" : ""), type: "button", "aria-label": "Claves", title: tieneCred(t.id) ? "Ver claves guardadas" : "Guardar usuario y contraseña", onclick: () => modalClavesTool(t) }, icon("key")),
+      el("button", { class: "icobtn", type: "button", "aria-label": "Editar", title: "Editar esta herramienta", onclick: () => modalCatalogo(t.id) }, icon("pencil")));
 
-    const puertas = t.enlaces.length
-      ? el("div", { class: "puertas" }, t.enlaces.map((e) =>
-          el("a", { class: "puerta", "data-t": e.tipo, href: e.url, target: "_blank", rel: "noopener" },
+    const cab = el("div", { class: "reg-cab" },
+      el("h3", { class: "reg-nom" }, t.nombre),
+      el("span", { class: "dot", "data-e": t.estado }, t.estado),
+      t.categoria === "Por clasificar" ? el("span", { class: "pin-clasif" }, "por clasificar") : null,
+      acc);
+
+    const enlaces = t.enlaces.length
+      ? el("div", { class: "accesos" }, t.enlaces.map((e) =>
+          el("a", { class: "acceso", "data-t": e.tipo, href: e.url, target: "_blank", rel: "noopener" },
             icon(TIPO_IC[e.tipo] || "link"),
-            el("span", { class: "txt" }, e.etiqueta || "Abrir"),
-            el("span", { class: "go", html: svg("external") }))))
-      : el("p", { class: "puerta-vacia" }, "Sin enlace todavía. Pulsa el lápiz para agregar el formulario o el panel.");
+            el("span", {}, e.etiqueta || "Abrir"),
+            el("span", { class: "acceso-go", html: svg("arrow") }))))
+      : el("span", { class: "acceso-vacio" }, "Sin enlace todavía — pulsa ✎ para agregarlo");
 
-    return el("article", { class: "card" + (t.destacado ? " destacado" : "") },
-      el("div", { class: "card-top" },
-        el("div", { class: "stamp" }, t.emoji || "·"),
-        el("div", { class: "card-id" }, el("h3", { class: "card-nom" }, t.nombre), meta),
-        acc),
-      t.descripcion ? el("p", { class: "card-desc" }, t.descripcion) : null,
-      puertas,
-      el("div", { class: "card-pie" },
-        t.tags.length ? el("span", { class: "tags" }, "#" + t.tags.slice(0, 3).join("  #")) : el("span", {}, ""),
-        el("span", { class: "sp" }),
-        el("a", { href: t.repo, target: "_blank", rel: "noopener" }, icon("github"), "Repositorio")));
+    return el("article", { class: "reg" + (t.destacado ? " destacada" : "") },
+      el("span", { class: "reg-marca" }, t.emoji || ""),
+      el("div", { class: "reg-cuerpo" },
+        cab,
+        t.descripcion ? el("p", { class: "reg-desc" }, t.descripcion) : null,
+        enlaces,
+        el("div", { class: "reg-meta" },
+          t.tags.length ? el("span", { class: "reg-tags" }, t.tags.slice(0, 4).map((x) => "#" + x).join("  ")) : null,
+          el("a", { class: "reg-repo", href: t.repo, target: "_blank", rel: "noopener" }, "Repositorio", icon("external")))));
   }
 
   /* ---------- modal base ---------- */
@@ -507,10 +513,15 @@
   $$("[data-ic]").forEach((s) => { s.innerHTML = svg(s.dataset.ic); });
   aplicarTema(localStorage.getItem(LS_TEMA) === "light" ? "light" : "dark", false);
 
-  $("#q").addEventListener("input", (e) => { busqueda = e.target.value; renderLista(); });
+  $("#q").addEventListener("input", (e) => { busqueda = e.target.value; render(); });
   $("#btnTema").addEventListener("click", () => aplicarTema(document.documentElement.dataset.tema === "dark" ? "light" : "dark", true));
   $("#btnClaves").addEventListener("click", modalClavesGlobal);
   $("#btnAgregar").addEventListener("click", () => modalCatalogo("__nueva__"));
+
+  const railToggle = () => { const open = document.body.classList.toggle("rail-abierto"); $("#railScrim").hidden = !open; };
+  $("#railToggle").addEventListener("click", railToggle);
+  $("#railScrim").addEventListener("click", cerrarRail);
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("rail-abierto")) cerrarRail(); });
 
   cargar().catch((err) => { $("#lista").innerHTML = `<p class="estado-vacio">No se pudo cargar <code>data/tools.json</code>.<br>${String(err)}</p>`; });
 })();

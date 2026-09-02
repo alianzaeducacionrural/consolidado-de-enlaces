@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Consolidado de enlaces · Alianza Educación Rural</title>
-  <meta name="description" content="Todas las herramientas del equipo en un solo lugar: formularios, paneles de administración y claves de acceso." />
-  <meta name="theme-color" content="#0b0910" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23c026d3'/%3E%3Cstop offset='.55' stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='3' y='3' width='26' height='26' rx='8' fill='url(%23g)'/%3E%3Cpath d='M12 20 20 12M13 12h7v7' fill='none' stroke='%230b0910' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <meta name="description" content="Directorio de todas las herramientas del equipo: formularios, paneles de administración y claves de acceso." />
+  <meta name="theme-color" content="#0a0908" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0908'/%3E%3Cpath d='M16 4 27 16 16 28 5 16Z' fill='none' stroke='%23c9a24b' stroke-width='1.4'/%3E%3Cpath d='M16 10 22 16 16 22 10 16Z' fill='%23c9a24b'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;450;500;600;700&family=Sora:wght@500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
   <link rel="stylesheet" href="./assets/styles.css" />
   <script>
     try {
@@ -19,57 +19,61 @@
   </script>
 </head>
 <body>
-  <div class="aurora" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
 
-  <header class="masthead">
-    <div class="masthead-in">
-      <a class="marca" href="./">
-        <span class="marca-mark" aria-hidden="true">
+  <div class="shell">
+    <aside class="rail" id="rail" aria-label="Categorías">
+      <a class="rail-marca" href="./">
+        <span class="rail-emblema" aria-hidden="true">
           <svg viewBox="0 0 32 32">
-            <path d="M12 20 20 12M13 12h7v7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 3.5 28.5 16 16 28.5 3.5 16Z" fill="none" stroke="currentColor" stroke-width="1.1"/>
+            <path d="M16 9.5 22.5 16 16 22.5 9.5 16Z" fill="currentColor"/>
           </svg>
         </span>
-        <span class="marca-txt">
-          <span class="marca-nom">Consolidado de enlaces</span>
-          <span class="marca-sub" id="brandSub">Alianza Educación Rural</span>
-        </span>
+        <span class="rail-marca-txt">Consolidado<br>de enlaces</span>
       </a>
 
-      <div class="masthead-acc">
-        <button id="btnClaves" class="btn btn-quiet" type="button" title="Claves guardadas">
-          <span class="ic" data-ic="key"></span><span class="btn-lbl">Claves</span>
+      <nav id="chips" class="rail-nav"></nav>
+
+      <div class="rail-foot">
+        <button id="btnAgregar" class="rail-btn rail-btn-cta" type="button">
+          <span class="ic" data-ic="plus"></span><span>Agregar herramienta</span>
         </button>
-        <button id="btnTema" class="btn btn-icon" type="button" aria-label="Cambiar tema">
-          <span class="ic" data-ic="moon"></span>
+        <button id="btnClaves" class="rail-btn" type="button">
+          <span class="ic" data-ic="key"></span><span>Claves guardadas</span>
         </button>
-        <button id="btnAgregar" class="btn btn-primary" type="button" title="Agregar herramienta">
-          <span class="ic" data-ic="plus"></span><span class="btn-lbl">Agregar herramienta</span>
+        <button id="btnTema" class="rail-btn" type="button">
+          <span class="ic" data-ic="moon"></span><span id="temaLbl">Modo claro</span>
         </button>
       </div>
-    </div>
-  </header>
+    </aside>
 
-  <main class="pagina">
-    <section class="intro">
-      <h1>Todas tus herramientas,<br><span class="grad">en un solo lugar</span></h1>
-      <p>Abre el formulario o el panel de administración de cada plataforma, y guarda aquí sus claves de acceso — solo en este navegador.</p>
-    </section>
+    <div class="rail-scrim" id="railScrim" hidden></div>
 
-    <div class="buscador">
-      <span class="ic" data-ic="search" aria-hidden="true"></span>
-      <input id="q" type="search" placeholder="Buscar por nombre, etiqueta o enlace…" autocomplete="off" spellcheck="false" />
-    </div>
+    <main class="contenido">
+      <header class="topbar">
+        <button class="rail-toggle" id="railToggle" type="button" aria-label="Categorías">
+          <span class="ic" data-ic="menu"></span>
+        </button>
+        <div class="buscador">
+          <span class="ic" data-ic="search" aria-hidden="true"></span>
+          <input id="q" type="search" placeholder="Buscar herramienta, etiqueta o enlace…" autocomplete="off" spellcheck="false" />
+        </div>
+      </header>
 
-    <nav id="chips" class="indice" aria-label="Categorías"></nav>
+      <div class="encabezado">
+        <h1 id="tituloCat">Directorio</h1>
+        <span id="pieInfo" class="conteo"></span>
+      </div>
 
-    <div id="lista" class="lista"></div>
-    <p id="vacio" class="estado-vacio" hidden>Ninguna herramienta coincide con la búsqueda.</p>
+      <div id="lista" class="lista"></div>
+      <p id="vacio" class="estado-vacio" hidden>Ninguna herramienta coincide con la búsqueda.</p>
 
-    <footer class="pie">
-      <span id="pieInfo"></span>
-      <span>Las claves se guardan <strong>solo en este navegador</strong> — nunca se suben a GitHub.</span>
-    </footer>
-  </main>
+      <footer class="pie">
+        Las claves se guardan <strong>solo en este navegador</strong> — nunca se suben a GitHub.
+      </footer>
+    </main>
+  </div>
 
   <div id="modal" class="modal" hidden>
     <div class="modal-fondo" data-cerrar></div>
