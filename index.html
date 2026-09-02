@@ -4,8 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Consolidado de enlaces · Alianza Educación Rural</title>
-  <meta name="description" content="Todas las herramientas del equipo en un solo lugar: formularios, paneles de administración y claves de acceso." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E" />
+  <meta name="description" content="Índice de todas las herramientas del equipo: formularios, paneles de administración y claves de acceso." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='5' width='3' height='22' rx='1.5' fill='%232b39b8'/%3E%3Crect x='13' y='7' width='13' height='3' rx='1.5' fill='%2317181b'/%3E%3Crect x='13' y='14.5' width='13' height='3' rx='1.5' fill='%2317181b'/%3E%3Crect x='13' y='22' width='9' height='3' rx='1.5' fill='%2317181b'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,450;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;450;500;600&display=swap" />
   <link rel="stylesheet" href="./assets/styles.css" />
   <script>
     try {
@@ -16,59 +19,66 @@
   </script>
 </head>
 <body>
-  <header class="top">
-    <div class="top-inner">
-      <div class="brand">
-        <span class="brand-logo">☕</span>
-        <div>
-          <strong>Consolidado de enlaces</strong>
-          <span class="brand-sub" id="brandSub">Alianza Educación Rural</span>
-        </div>
-      </div>
-      <div class="top-actions">
-        <button id="btnCatalogo" class="btn btn-ghost" title="Editar herramientas, enlaces y descripciones">✎ Editar</button>
-        <button id="btnClaves" class="btn btn-ghost" title="Exportar / importar tus claves">🔑 Claves</button>
-        <button id="btnTema" class="btn btn-icon" title="Cambiar tema" aria-label="Cambiar tema">🌙</button>
-        <a class="btn btn-ghost" href="https://github.com/alianzaeducacionrural" target="_blank" rel="noopener">GitHub ↗</a>
+  <header class="masthead">
+    <div class="masthead-in">
+      <a class="marca" href="./">
+        <svg class="marca-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="6" y="5" width="3" height="22" rx="1.5" fill="currentColor"/>
+          <rect x="13" y="7" width="13" height="3" rx="1.5" fill="var(--ink)"/>
+          <rect x="13" y="14.5" width="13" height="3" rx="1.5" fill="var(--ink)"/>
+          <rect x="13" y="22" width="9" height="3" rx="1.5" fill="var(--ink)"/>
+        </svg>
+        <span class="marca-txt">
+          <span class="marca-nom">Consolidado de enlaces</span>
+          <span class="marca-sub" id="brandSub">Alianza Educación Rural</span>
+        </span>
+      </a>
+
+      <div class="masthead-acc">
+        <button id="btnClaves" class="btn btn-quiet" type="button" title="Claves guardadas">
+          <span class="ic" data-ic="key"></span><span class="btn-lbl">Claves</span>
+        </button>
+        <button id="btnTema" class="btn btn-icon" type="button" aria-label="Cambiar tema">
+          <span class="ic" data-ic="moon"></span>
+        </button>
+        <button id="btnAgregar" class="btn btn-primary" type="button" title="Agregar herramienta">
+          <span class="ic" data-ic="plus"></span><span class="btn-lbl">Agregar herramienta</span>
+        </button>
       </div>
     </div>
   </header>
 
-  <main class="wrap">
-    <section class="hero">
-      <h1>Todas tus herramientas, en un solo lugar</h1>
-      <p>Abre el formulario o el panel de administración de cada plataforma, y guarda aquí las claves de acceso (solo en este navegador).</p>
+  <main class="pagina">
+    <section class="intro">
+      <h1>El índice de tus herramientas</h1>
+      <p>Abre el formulario o el panel de administración de cada plataforma, y guarda aquí sus claves de acceso — solo en este navegador.</p>
     </section>
 
-    <div class="controls">
-      <div class="search">
-        <span aria-hidden="true">🔎</span>
-        <input id="q" type="search" placeholder="Buscar herramienta, etiqueta o enlace…" autocomplete="off" />
-      </div>
-      <div id="chips" class="chips"></div>
+    <div class="buscador">
+      <span class="ic" data-ic="search" aria-hidden="true"></span>
+      <input id="q" type="search" placeholder="Buscar por nombre, etiqueta o enlace…" autocomplete="off" spellcheck="false" />
     </div>
 
+    <nav id="chips" class="indice" aria-label="Categorías"></nav>
+
     <div id="lista" class="lista"></div>
-    <p id="vacio" class="vacio" hidden>No hay herramientas que coincidan con la búsqueda.</p>
+    <p id="vacio" class="estado-vacio" hidden>Ninguna herramienta coincide con la búsqueda.</p>
 
     <footer class="pie">
       <span id="pieInfo"></span>
-      <span class="pie-sep">·</span>
-      <span>Las claves se guardan <strong>solo en tu navegador</strong>, nunca se suben a GitHub.</span>
+      <span>Las claves se guardan <strong>solo en este navegador</strong> — nunca se suben a GitHub.</span>
     </footer>
   </main>
 
-  <!-- Modal genérico -->
   <div id="modal" class="modal" hidden>
-    <div class="modal-bg" data-cerrar></div>
+    <div class="modal-fondo" data-cerrar></div>
     <div class="modal-caja" role="dialog" aria-modal="true">
-      <button class="modal-x" data-cerrar aria-label="Cerrar">✕</button>
+      <button class="modal-x" data-cerrar type="button" aria-label="Cerrar"><span class="ic" data-ic="x"></span></button>
       <div id="modalContenido"></div>
     </div>
   </div>
 
   <input type="file" id="importFile" accept="application/json" hidden />
-
   <script src="./assets/app.js"></script>
 </body>
 </html>
