@@ -192,7 +192,11 @@
   function renderLista() {
     const cont = $("#lista"); cont.textContent = "";
     const vis = TOOLS.filter(coincide);
-    $("#vacio").hidden = vis.length > 0;
+    const vac = $("#vacio");
+    vac.hidden = vis.length > 0;
+    vac.textContent = TOOLS.length === 0
+      ? "Cargando herramientas desde GitHub…"
+      : (busqueda.trim() ? "Ninguna herramienta coincide con la búsqueda." : "No hay herramientas en esta categoría.");
 
     const orden = (arr) => arr.sort((a, b) => (b.destacado - a.destacado) || a.nombre.localeCompare(b.nombre, "es"));
 
@@ -410,7 +414,7 @@
       categorias: CAT,
       herramientas: copia.map((x) => ({
         id: x.id, nombre: x.nombre, descripcion: x.descripcion, categoria: x.categoria,
-        emoji: x.emoji, estado: x.estado, destacado: !!x.destacado,
+        estado: x.estado, destacado: !!x.destacado,
         ...(x.oculto ? { oculto: true } : {}),
         tags: (x.tags || []).map((s) => s.trim()).filter(Boolean),
         repo: x.repo || `https://github.com/${OWNER}/${x.id}`,
