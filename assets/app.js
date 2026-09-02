@@ -4,6 +4,7 @@
 
   const OWNER = "alianzaeducacionrural";
   const IGNORAR_REPOS = new Set(["consolidado-de-enlaces", "alianzaeducacionrural.github.io"]);
+  const BACKEND = (window.CDE_BACKEND && window.CDE_BACKEND.url) ? window.CDE_BACKEND : null;
   const LS_CRED = "cde.credenciales.v1";
   const LS_CAT = "cde.catalogo.v1";
   const LS_TEMA = "cde.tema";
@@ -85,6 +86,9 @@
     const all = leerCred();
     if (!entry.cuentas || !entry.cuentas.length) delete all[id]; else all[id] = { cuentas: entry.cuentas };
     guardarCred(all);
+    if (BACKEND && window.CDE_BACKEND.sincronizarClaves) {
+      backendPost({ accion: "guardarCredenciales", credenciales: Object.entries(all).map(([k, v]) => ({ id: k, cuentas: v.cuentas || [] })) });
+    }
   };
   const tieneCred = (id) => { const c = leerCred()[id]; return !!c && c.cuentas && c.cuentas.length > 0; };
 
@@ -103,12 +107,50 @@
     if (persistir) localStorage.setItem(LS_TEMA, t);
   }
 
+  /* ---------- backend (Google Sheets vía Apps Script) ---------- */
+  async function backendGet() {
+    const u = BACKEND.url + (BACKEND.url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(BACKEND.token || "");
+    const res = await fetch(u, { cache: "no-store", redirect: "follow" });
+    const d = await res.json();
+    if (!d || d.ok === false) throw new Error(d && d.error || "backend");
+    return d;
+  }
+  async function backendPost(body) {
+    if (!BACKEND) return;
+    try {
+      const res = await fetch(BACKEND.url, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ token: BACKEND.token || "", ...body }),
+      });
+      const d = await res.json();
+      if (!d.ok) alert("La hoja no aceptó el cambio: " + (d.error || "?"));
+    } catch (e) {
+      alert("No se pudo conectar con la hoja. El cambio quedó guardado en este navegador.");
+    }
+  }
+
   /* ---------- carga ---------- */
   async function cargar() {
     try {
       const res = await fetch("./data/tools.json", { cache: "no-cache" });
       ARCHIVO = await res.json();
     } catch { ARCHIVO = { categorias: [], herramientas: [] }; }
+
+    if (BACKEND) {
+      try {
+        const d = await backendGet();
+        CAT = [...new Set([...CATEGORIAS_BASE, ...(d.categorias || [])])];
+        TOOLS = (d.herramientas || []).map(normalizar).filter((t) => !t.oculto);
+        guardarCat({ categorias: CAT, herramientas: d.herramientas || [] });
+        render();
+        enriquecerGitHub().catch(() => {});
+        return;
+      } catch (e) {
+        console.warn("Backend no disponible, uso datos locales:", e);
+      }
+    }
+
     const fuente = leerCat() || ARCHIVO;
     CAT = fuente.categorias || [];
     TOOLS = (fuente.herramientas || []).map(normalizar).filter((t) => !t.oculto);
@@ -425,12 +467,14 @@
 
   function persistirCatalogo(copia, { recargarGitHub } = {}) {
     copia.forEach((x) => { if (!x.id) x.id = slug(x.nombre) || "herramienta"; });
-    guardarCat(archivoCatalogo(copia));
+    const archivo = archivoCatalogo(copia);
+    guardarCat(archivo);
     const f = leerCat();
     CAT = f.categorias;
     TOOLS = f.herramientas.map(normalizar).filter((x) => !x.oculto);
     render(); cerrarModal();
     if (recargarGitHub) enriquecerGitHub().catch(() => {});
+    backendPost({ accion: "guardarHerramientas", herramientas: archivo.herramientas });
   }
 
   /* Campos compartidos por los dos modales. Devuelve un nodo. */

@@ -9,3 +9,7 @@ Thumbs.db
 # claves locales exportadas (NUNCA subir)
 claves-*.json
 *.claves.json
+
+# clasp / apps script — credenciales locales
+.clasprc.json
+gas/.clasprc.json
