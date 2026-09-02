@@ -211,7 +211,7 @@
   function fila(t) {
     const acc = el("div", { class: "reg-acc" },
       el("button", { class: "icobtn" + (tieneCred(t.id) ? " on" : ""), type: "button", "aria-label": "Claves", title: tieneCred(t.id) ? "Ver claves guardadas" : "Guardar usuario y contraseña", onclick: () => modalClavesTool(t) }, icon("key")),
-      el("button", { class: "icobtn", type: "button", "aria-label": "Editar", title: "Editar esta herramienta", onclick: () => modalCatalogo(t.id) }, icon("pencil")));
+      el("button", { class: "icobtn", type: "button", "aria-label": "Editar", title: "Editar esta herramienta", onclick: () => modalEditarHerramienta(t.id) }, icon("pencil")));
 
     const cab = el("div", { class: "reg-cab" },
       el("h3", { class: "reg-nom" }, t.nombre),
@@ -385,20 +385,18 @@
     r.readAsText(f);
   });
 
-  /* ---------- modal: editar catálogo ---------- */
-  function modalCatalogo(preId) {
-    const copia = structuredClone(TOOLS).filter((x) => !esRepoNuevo(x));
-    copia.forEach((x) => { delete x._nuevoRepo; });
-    let sel;
-    if (preId === "__nueva__") {
-      const nueva = { id: "herramienta-" + Date.now().toString(36).slice(-4), nombre: "", descripcion: "", categoria: "Por clasificar", emoji: "", estado: "activo", destacado: false, oculto: false, tags: [], repo: "", enlaces: [], _nuevo: true };
-      copia.push(nueva); sel = nueva.id;
-    } else {
-      sel = (preId && copia.some((x) => x.id === preId)) ? preId : copia[0]?.id;
-    }
-    const cont = el("div");
+  /* ============================================================
+     Catálogo — funciones independientes: editar / nueva
+     ============================================================ */
 
-    const construir = () => ({
+  function snapshotCatalogo() {
+    const copia = structuredClone(TOOLS).filter((x) => !esRepoNuevo(x));
+    copia.forEach((x) => { delete x._nuevoRepo; delete x._nuevo; delete x._idManual; });
+    return copia;
+  }
+
+  function archivoCatalogo(copia) {
+    return {
       _comentario: "Catálogo de herramientas. Las contraseñas NO van aquí (se guardan solo en el navegador).",
       categorias: CAT,
       herramientas: copia.map((x) => ({
@@ -409,97 +407,129 @@
         repo: x.repo || `https://github.com/${OWNER}/${x.id}`,
         enlaces: (x.enlaces || []).filter((e) => e.url),
       })),
-    });
+    };
+  }
 
-    const aplicar = () => {
-      copia.forEach((x) => { if (!x.id) x.id = slug(x.nombre) || "herramienta"; });
-      guardarCat(construir());
-      const f = leerCat();
-      CAT = f.categorias;
-      TOOLS = f.herramientas.map(normalizar).filter((t) => !t.oculto);
-      render(); cerrarModal(); enriquecerGitHub().catch(() => {});
+  function persistirCatalogo(copia, { recargarGitHub } = {}) {
+    copia.forEach((x) => { if (!x.id) x.id = slug(x.nombre) || "herramienta"; });
+    guardarCat(archivoCatalogo(copia));
+    const f = leerCat();
+    CAT = f.categorias;
+    TOOLS = f.herramientas.map(normalizar).filter((x) => !x.oculto);
+    render(); cerrarModal();
+    if (recargarGitHub) enriquecerGitHub().catch(() => {});
+  }
+
+  /* Campos compartidos por los dos modales. Devuelve un nodo. */
+  function camposHerramienta(t, repintar, { idEditable, catsExtra }) {
+    const wrap = el("div");
+    const campo = (label, key, tag) => {
+      const inp = el(tag || "input", tag === "textarea" ? { rows: "3" } : {});
+      inp.value = t[key] ?? "";
+      inp.addEventListener("input", () => {
+        t[key] = inp.value;
+        if (idEditable && key === "nombre" && !t._idManual) { t.id = slug(inp.value); if (idInp) idInp.value = t.id; }
+      });
+      return el("div", { class: "campo" }, el("label", {}, label), inp);
     };
 
-    function pintar() {
-      cont.textContent = "";
-      cont.append(el("h2", {}, icon("pencil"), preId === "__nueva__" ? "Nueva herramienta" : "Editar herramienta"));
-      cont.append(el("p", { class: "sub" }, hayCatLocal()
-        ? "Tus cambios se guardan en este navegador. Para que los vean todos, descarga tools.json y súbelo al repositorio."
-        : "Los cambios se guardan en tu navegador al pulsar Guardar. Para publicarlos a todos, descarga tools.json."));
+    wrap.append(campo("Nombre", "nombre"));
+    wrap.append(campo("Descripción — para qué sirve", "descripcion", "textarea"));
 
-      const t = copia.find((x) => x.id === sel);
+    const idInp = el("input", { value: t.id || "", ...(idEditable ? {} : { disabled: "disabled" }) });
+    idInp.addEventListener("input", () => { t._idManual = true; t.id = slug(idInp.value); });
+    wrap.append(el("div", { class: "campo" }, el("label", {}, "Identificador" + (idEditable ? " (= nombre del repo en GitHub, si aplica)" : "")), idInp));
 
-      // selector de herramienta
-      cont.append(el("div", { class: "campo" }, el("span", { class: "lbl" }, "Editando"),
-        el("div", { class: "fila" },
-          dropdown({
-            options: copia.map((x) => ({ value: x.id, label: `${x.emoji || "•"}  ${x.nombre || "(sin nombre)"}` })),
-            value: sel, ariaLabel: "Herramienta", onChange: (v) => { sel = v; pintar(); },
-          }),
-          el("button", { class: "btn btn-line btn-sm", type: "button", style: "flex:0 0 auto", onclick: () => { const nueva = { id: "herramienta-" + Date.now().toString(36).slice(-4), nombre: "", descripcion: "", categoria: "Por clasificar", emoji: "", estado: "activo", destacado: false, tags: [], repo: "", enlaces: [], _nuevo: true }; copia.push(nueva); sel = nueva.id; pintar(); } }, icon("plus"), "Nueva"))));
-      if (!t) return;
+    const cats = [...new Set([...CAT, ...(catsExtra || [])])].filter(Boolean);
+    const dlId = "cats-dl-" + Math.random().toString(36).slice(2, 7);
+    const catInp = el("input", { list: dlId, value: t.categoria || "" });
+    catInp.addEventListener("input", () => (t.categoria = catInp.value));
+    const emojiInp = el("input", { value: t.emoji || "", maxlength: "4", style: "text-align:center" });
+    emojiInp.addEventListener("input", () => (t.emoji = emojiInp.value));
+    wrap.append(el("div", { class: "fila" },
+      el("div", { class: "campo", style: "flex:2 1 180px" }, el("label", {}, "Categoría"), catInp,
+        el("datalist", { id: dlId }, cats.map((c) => el("option", { value: c })))),
+      el("div", { class: "campo", style: "flex:0 0 64px" }, el("label", {}, "Emoji"), emojiInp)));
 
-      const campo = (label, key, tag) => {
-        const inp = el(tag || "input", tag === "textarea" ? { rows: "3" } : {});
-        inp.value = t[key] ?? "";
-        inp.addEventListener("input", () => {
-          t[key] = inp.value;
-          if (t._nuevo && key === "nombre" && !t._idManual) t.id = slug(inp.value) || t.id;
-        });
-        return el("div", { class: "campo" }, el("label", {}, label), inp);
-      };
-      cont.append(campo("Nombre", "nombre"));
-      cont.append(campo("Descripción — para qué sirve", "descripcion", "textarea"));
+    wrap.append(el("div", { class: "campo" }, el("span", { class: "lbl" }, "Estado"),
+      segmented({ options: ["activo", "beta", "borrador", "archivado"].map((s) => ({ value: s, label: s })), value: t.estado, onChange: (v) => (t.estado = v) })));
 
-      // identificador
-      const idInp = el("input", { value: t.id, ...(t._nuevo ? {} : { disabled: "disabled" }) });
-      idInp.addEventListener("input", () => { t._idManual = true; t.id = slug(idInp.value); });
-      cont.append(el("div", { class: "campo" }, el("label", {}, "Identificador (= nombre del repo en GitHub, si aplica)"), idInp));
+    const tagsInp = el("input", { value: (t.tags || []).join(", ") });
+    tagsInp.addEventListener("input", () => (t.tags = tagsInp.value.split(",").map((s) => s.trim()).filter(Boolean)));
+    wrap.append(el("div", { class: "campo" }, el("label", {}, "Etiquetas (separadas por coma)"), tagsInp));
 
-      // categoría + emoji + estado
-      const cats = [...new Set([...CAT, ...copia.map((x) => x.categoria)])].filter(Boolean);
-      const catInp = el("input", { list: "cats-dl", value: t.categoria || "" });
-      catInp.addEventListener("input", () => (t.categoria = catInp.value));
-      cont.append(el("div", { class: "fila" },
-        el("div", { class: "campo", style: "flex:2 1 180px" }, el("label", {}, "Categoría"), catInp,
-          el("datalist", { id: "cats-dl" }, cats.map((c) => el("option", { value: c })))),
-        (() => { const i = el("input", { value: t.emoji || "", maxlength: "4", style: "text-align:center" }); i.addEventListener("input", () => (t.emoji = i.value)); return el("div", { class: "campo", style: "flex:0 0 64px" }, el("label", {}, "Emoji"), i); })()));
+    const dChk = el("input", { type: "checkbox", ...(t.destacado ? { checked: "checked" } : {}) });
+    dChk.addEventListener("change", () => (t.destacado = dChk.checked));
+    wrap.append(el("label", { class: "chk" }, dChk, "Destacar — fijar arriba de su categoría"));
 
-      cont.append(el("div", { class: "campo" }, el("span", { class: "lbl" }, "Estado"),
-        segmented({ options: ["activo", "beta", "borrador", "archivado"].map((s) => ({ value: s, label: s })), value: t.estado, onChange: (v) => (t.estado = v) })));
-
-      const tagsInp = el("input", { value: (t.tags || []).join(", ") });
-      tagsInp.addEventListener("input", () => (t.tags = tagsInp.value.split(",").map((s) => s.trim()).filter(Boolean)));
-      cont.append(el("div", { class: "campo" }, el("label", {}, "Etiquetas (separadas por coma)"), tagsInp));
-
-      const dChk = el("input", { type: "checkbox", ...(t.destacado ? { checked: "checked" } : {}) });
-      dChk.addEventListener("change", () => (t.destacado = dChk.checked));
-      cont.append(el("label", { class: "chk" }, dChk, "Destacar — fijar arriba de su categoría"));
-
-      // enlaces
-      cont.append(el("h3", {}, "Enlaces"));
+    wrap.append(el("h3", {}, "Enlaces"));
+    const enlCont = el("div");
+    const pintarEnlaces = () => {
+      enlCont.textContent = "";
       (t.enlaces ||= []).forEach((lnk, i) => {
         const eti = el("input", { class: "enl-eti", placeholder: "Etiqueta", value: lnk.etiqueta || "" });
         eti.addEventListener("input", () => (lnk.etiqueta = eti.value));
         const url = el("input", { placeholder: "https://…", value: lnk.url || "" });
         url.addEventListener("input", () => (lnk.url = url.value));
-        cont.append(el("div", { class: "enl-row" }, eti, url,
+        enlCont.append(el("div", { class: "enl-row" }, eti, url,
           dropdown({ options: TIPOS.map((tp) => ({ value: tp, label: TIPO_TXT[tp], icon: TIPO_IC[tp] })), value: lnk.tipo || "publico", ariaLabel: "Tipo de enlace", onChange: (v) => (lnk.tipo = v) }),
-          el("button", { class: "icobtn", type: "button", "aria-label": "Quitar enlace", html: svg("trash"), onclick: () => { t.enlaces.splice(i, 1); pintar(); } })));
+          el("button", { class: "icobtn", type: "button", "aria-label": "Quitar enlace", html: svg("trash"), onclick: () => { t.enlaces.splice(i, 1); pintarEnlaces(); } })));
       });
-      cont.append(el("button", { class: "btn btn-line btn-sm", type: "button", onclick: () => { t.enlaces.push({ etiqueta: "", url: "", tipo: "publico" }); pintar(); } }, icon("plus"), "Agregar enlace"));
+      enlCont.append(el("button", { class: "btn btn-line btn-sm", type: "button", onclick: () => { t.enlaces.push({ etiqueta: "", url: "", tipo: "publico" }); pintarEnlaces(); } }, icon("plus"), "Agregar enlace"));
+    };
+    pintarEnlaces();
+    wrap.append(enlCont);
+    return wrap;
+  }
 
-      cont.append(el("div", { class: "modal-acciones" },
-        el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: aplicar }, icon("check"), "Guardar cambios"),
-        el("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => descargar("tools.json", construir()) }, icon("download"), "Descargar tools.json"),
-        el("button", { class: "btn btn-danger btn-sm", type: "button", onclick: () => { if (confirm(`¿Quitar "${t.nombre || t.id}" del catálogo?`)) { const j = copia.findIndex((x) => x.id === t.id); copia.splice(j, 1); sel = copia[0]?.id; pintar(); } } }, icon("trash"), "Quitar")));
-
-      if (hayCatLocal()) {
-        cont.append(el("button", { class: "btn btn-quiet btn-sm", type: "button", style: "margin-top:8px", onclick: () => { if (confirm("¿Descartar tus cambios locales y volver al catálogo del repositorio?")) { localStorage.removeItem(LS_CAT); cerrarModal(); cargar(); } } }, icon("rotate"), "Descartar mis cambios locales"));
-      }
+  /* — Editar una herramienta existente — */
+  function modalEditarHerramienta(id) {
+    const copia = snapshotCatalogo();
+    let t = copia.find((x) => x.id === id);
+    if (!t) {
+      const orig = TOOLS.find((x) => x.id === id);
+      t = orig ? structuredClone(orig) : { id, nombre: titulizar(id || ""), descripcion: "", categoria: "Por clasificar", emoji: "", estado: "activo", destacado: false, tags: [], repo: "", enlaces: [] };
+      delete t._nuevoRepo;
+      copia.push(t);
     }
-    pintar();
+    const cont = el("div", {},
+      el("h2", {}, icon("pencil"), el("span", {}, (t.emoji ? t.emoji + "  " : "") + (t.nombre || t.id))),
+      el("p", { class: "sub" }, "Estás editando solo esta herramienta. Los cambios se guardan en tu navegador; para publicarlos a todos, descarga tools.json y súbelo al repositorio."),
+      camposHerramienta(t, null, { idEditable: false, catsExtra: copia.map((x) => x.categoria) }),
+      el("div", { class: "modal-acciones" },
+        el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: () => persistirCatalogo(copia, { recargarGitHub: true }) }, icon("check"), "Guardar cambios"),
+        el("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => descargar("tools.json", archivoCatalogo(copia)) }, icon("download"), "Descargar tools.json"),
+        el("button", { class: "btn btn-danger btn-sm", type: "button", onclick: () => {
+          if (!confirm(`¿Quitar "${t.nombre || t.id}" del catálogo?`)) return;
+          const j = copia.findIndex((x) => x === t); if (j >= 0) copia.splice(j, 1);
+          persistirCatalogo(copia);
+        } }, icon("trash"), "Quitar")),
+      hayCatLocal() ? el("button", { class: "btn btn-quiet btn-sm", type: "button", style: "margin-top:8px", onclick: () => { if (confirm("¿Descartar TUS cambios locales y volver al catálogo del repositorio?")) { localStorage.removeItem(LS_CAT); cerrarModal(); cargar(); } } }, icon("rotate"), "Descartar mis cambios locales") : null);
     abrirModal(cont);
+  }
+
+  /* — Crear una herramienta nueva — */
+  function modalNuevaHerramienta() {
+    const copia = snapshotCatalogo();
+    const t = { id: "", nombre: "", descripcion: "", categoria: "Por clasificar", emoji: "", estado: "activo", destacado: false, tags: [], repo: "", enlaces: [{ etiqueta: "", url: "", tipo: "publico" }] };
+
+    const crear = () => {
+      t.nombre = t.nombre.trim();
+      if (!t.nombre) { alert("Ponle un nombre a la herramienta."); return; }
+      t.id = t.id || slug(t.nombre);
+      if (copia.some((x) => x.id === t.id) || TOOLS.some((x) => x.id === t.id)) { alert(`Ya existe una herramienta con el identificador "${t.id}". Cámbialo.`); return; }
+      t.enlaces = t.enlaces.filter((e) => e.url.trim());
+      copia.push(t);
+      persistirCatalogo(copia, { recargarGitHub: true });
+    };
+
+    abrirModal(el("div", {},
+      el("h2", {}, icon("plus"), "Nueva herramienta"),
+      el("p", { class: "sub" }, "Se agrega al catálogo de tu navegador. Para que la vean todos, descarga tools.json y súbelo al repositorio."),
+      camposHerramienta(t, null, { idEditable: true, catsExtra: copia.map((x) => x.categoria) }),
+      el("div", { class: "modal-acciones" },
+        el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: crear }, icon("check"), "Crear herramienta"),
+        el("button", { class: "btn btn-quiet btn-sm", type: "button", onclick: cerrarModal }, "Cancelar"))));
   }
 
   function descargar(nombre, obj) {
@@ -516,7 +546,7 @@
   $("#q").addEventListener("input", (e) => { busqueda = e.target.value; render(); });
   $("#btnTema").addEventListener("click", () => aplicarTema(document.documentElement.dataset.tema === "dark" ? "light" : "dark", true));
   $("#btnClaves").addEventListener("click", modalClavesGlobal);
-  $("#btnAgregar").addEventListener("click", () => modalCatalogo("__nueva__"));
+  $("#btnAgregar").addEventListener("click", modalNuevaHerramienta);
 
   const railToggle = () => { const open = document.body.classList.toggle("rail-abierto"); $("#railScrim").hidden = !open; };
   $("#railToggle").addEventListener("click", railToggle);
