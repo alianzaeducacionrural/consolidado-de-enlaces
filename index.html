@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Consolidado de enlaces · Alianza Educación Rural</title>
+  <meta name="description" content="Todas las herramientas del equipo en un solo lugar: formularios, paneles de administración y claves de acceso." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <script>
+    try {
+      var t = localStorage.getItem("cde.tema");
+      if (!t) t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.tema = t;
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div class="brand">
+        <span class="brand-logo">☕</span>
+        <div>
+          <strong>Consolidado de enlaces</strong>
+          <span class="brand-sub" id="brandSub">Alianza Educación Rural</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="btnClaves" class="btn btn-ghost" title="Exportar / importar claves">🔑 Claves</button>
+        <button id="btnCatalogo" class="btn btn-ghost" title="Editar catálogo de herramientas">✎ Catálogo</button>
+        <button id="btnTema" class="btn btn-icon" title="Cambiar tema" aria-label="Cambiar tema">🌙</button>
+        <a class="btn btn-ghost" href="https://github.com/alianzaeducacionrural" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1>Todas tus herramientas, en un solo lugar</h1>
+      <p>Abre el formulario o el panel de administración de cada plataforma, y guarda aquí las claves de acceso (solo en este navegador).</p>
+    </section>
+
+    <div class="controls">
+      <div class="search">
+        <span aria-hidden="true">🔎</span>
+        <input id="q" type="search" placeholder="Buscar herramienta, etiqueta o enlace…" autocomplete="off" />
+      </div>
+      <div id="chips" class="chips"></div>
+    </div>
+
+    <div id="lista" class="lista"></div>
+    <p id="vacio" class="vacio" hidden>No hay herramientas que coincidan con la búsqueda.</p>
+
+    <footer class="pie">
+      <span id="pieInfo"></span>
+      <span class="pie-sep">·</span>
+      <span>Las claves se guardan <strong>solo en tu navegador</strong>, nunca se suben a GitHub.</span>
+    </footer>
+  </main>
+
+  <!-- Modal genérico -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-bg" data-cerrar></div>
+    <div class="modal-caja" role="dialog" aria-modal="true">
+      <button class="modal-x" data-cerrar aria-label="Cerrar">✕</button>
+      <div id="modalContenido"></div>
+    </div>
+  </div>
+
+  <input type="file" id="importFile" accept="application/json" hidden />
+
+  <script src="./assets/app.js"></script>
+</body>
+</html>
