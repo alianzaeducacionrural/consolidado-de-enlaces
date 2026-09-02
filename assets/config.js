@@ -16,8 +16,8 @@
         con el token. Sube este archivo al repositorio.
    ───────────────────────────────────────────────────────────── */
 window.CDE_BACKEND = {
-  url: "",
-  token: "",
+  url: "https://script.google.com/macros/s/AKfycbx4HkzVEmuf_sdIK9l0HqbYYqfhMDkb8MjKLJu3QHw5paa9jOt63AgqSkxnDIbeSzl-/exec",
+  token: "610d45cb7ffa490c89ac43f56c07e926",
 
   // Guardar también las contraseñas en la hoja (pestaña "Credenciales").
   // Déjalo en false salvo que el acceso a la hoja esté bien restringido:
