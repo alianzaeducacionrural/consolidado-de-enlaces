@@ -230,23 +230,53 @@ a { color: inherit; }
 .fila { display: flex; gap: 8px; flex-wrap: wrap; }
 .fila > * { flex: 1; min-width: 130px; }
 
+.cuentas-lista { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
 .cuenta {
-  border: 1px solid var(--card-border); border-radius: 12px; padding: 11px; margin-bottom: 10px;
+  border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 12px 10px;
   background: var(--card);
 }
-.cuenta-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; }
-.cuenta-row .k { width: 62px; flex: none; color: var(--ink-faint); }
-.cuenta-row .v { flex: 1; min-width: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
-.cuenta-row button { background: none; border: 0; font: inherit; font-size: 11px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
-.cuenta-row button:hover { color: var(--cafe); }
-.mini-aviso { font-size: 11px; color: #b9861f; margin-top: 6px; }
+.cuenta-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.cuenta-num { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-faint); }
+.cuenta-del {
+  border: 0; background: none; cursor: pointer; font-size: 14px; line-height: 1;
+  padding: 4px 6px; border-radius: 8px; opacity: .65; transition: opacity .15s, background .15s;
+}
+.cuenta-del:hover { opacity: 1; background: rgba(200, 60, 60, .12); }
+
+.cuenta-fila {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px;
+  padding: 4px 6px 4px 10px; margin-bottom: 7px;
+}
+.cuenta-fila:focus-within { border-color: var(--cafe); box-shadow: 0 0 0 3px rgba(169,110,73,.15); }
+.cuenta-ic { flex: none; font-size: 13px; opacity: .7; width: 16px; text-align: center; }
+.cuenta-fila input, .cuenta-fila textarea {
+  flex: 1; min-width: 0; border: 0; background: none; outline: none;
+  font: inherit; font-size: 13px; color: var(--ink); padding: 6px 0; resize: vertical;
+}
+.cuenta-fila input[type="password"] { letter-spacing: .12em; }
+.cuenta-fila-notas { align-items: flex-start; }
+.cuenta-fila-notas .cuenta-ic { margin-top: 8px; }
+.cuenta-acc { display: flex; flex: none; gap: 2px; }
+.ic-btn {
+  border: 0; background: none; cursor: pointer; font-size: 13px; line-height: 1;
+  padding: 6px; border-radius: 8px; color: var(--ink-soft); transition: background .15s;
+}
+.ic-btn:hover { background: var(--chip); }
+.cuenta-vacio { font-size: 13px; color: var(--ink-soft); text-align: center; padding: 14px 0 4px; }
+
+.mini-aviso { font-size: 11px; color: #b9861f; margin-top: 10px; }
+.modal-emoji { font-size: 19px; }
 
 .modal-acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
 
-.enlace-edit { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.enlace-edit { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; align-items: center; }
 .enlace-edit input { flex: 1; min-width: 120px; }
-.enlace-edit select { flex: none; width: 120px; }
+.enlace-edit select { flex: none; width: 130px; }
 .enlace-edit button { flex: none; }
+.fila .campo { margin-bottom: 0; }
+.chk { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 10px 0 2px; cursor: pointer; }
+.chk input { width: auto; }
 
 code { background: var(--chip); padding: 1px 5px; border-radius: 5px; font-size: .9em; }
 
