@@ -3,6 +3,7 @@
   "use strict";
 
   const OWNER = "alianzaeducacionrural";
+  const IGNORAR_REPOS = new Set(["consolidado-de-enlaces", "alianzaeducacionrural.github.io"]);
   const LS_CRED = "cde.credenciales.v1";
   const LS_TEMA = "cde.tema";
   const LS_FILTRO = "cde.filtro";
@@ -95,7 +96,7 @@
     const conocidos = new Set(TOOLS.map((t) => t.id.toLowerCase()));
     let nuevos = 0;
     for (const r of repos) {
-      if (r.fork || conocidos.has(r.name.toLowerCase())) continue;
+      if (r.fork || IGNORAR_REPOS.has(r.name.toLowerCase()) || conocidos.has(r.name.toLowerCase())) continue;
       const enlaces = [];
       if (r.homepage && /^https?:\/\//.test(r.homepage)) enlaces.push({ etiqueta: "Sitio", url: r.homepage, tipo: "publico" });
       TOOLS.push(normalizar({
