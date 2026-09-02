@@ -13,6 +13,12 @@
   const TIPO_TXT = { publico: "Público", formulario: "Formulario", panel: "Panel", admin: "Administración", otro: "Otro" };
   const TIPO_IC = { publico: "globe", formulario: "clipboard", panel: "activity", admin: "lock", otro: "link" };
 
+  const CATEGORIAS_BASE = [
+    "Programas", "Seguimiento", "Tableros", "Encuestas", "Formularios",
+    "Diagnósticos", "Formación", "Validaciones", "Gobernanza", "Currículo",
+    "Presentaciones", "Herramientas", "Por clasificar",
+  ];
+
   /* ---------- iconos (stroke, 24) ---------- */
   const P = {
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/>',
@@ -228,7 +234,7 @@
       : el("span", { class: "acceso-vacio" }, "Sin enlace todavía — pulsa ✎ para agregarlo");
 
     return el("article", { class: "reg" + (t.destacado ? " destacada" : "") },
-      el("span", { class: "reg-marca" }, t.emoji || ""),
+      el("span", { class: "reg-marca" }, ((t.nombre || t.id || "·").replace(/^[^\p{L}\p{N}]+/u, "").charAt(0) || "·").toUpperCase()),
       el("div", { class: "reg-cuerpo" },
         cab,
         t.descripcion ? el("p", { class: "reg-desc" }, t.descripcion) : null,
@@ -281,8 +287,11 @@
         }, o.icon ? icon(o.icon) : null, el("span", {}, o.label), o.value === value ? icon("check") : null)));
       wrap.append(menu);
       btn.setAttribute("aria-expanded", "true");
-      const r = menu.getBoundingClientRect();
-      if (r.bottom > innerHeight - 8 && btn.getBoundingClientRect().top > innerHeight / 2) menu.classList.add("dd-menu-up");
+      const bt = btn.getBoundingClientRect();
+      let r = menu.getBoundingClientRect();
+      if (r.right > innerWidth - 8 || bt.left + r.width > innerWidth - 8) menu.classList.add("dd-menu-right");
+      r = menu.getBoundingClientRect();
+      if (r.bottom > innerHeight - 8 && bt.top > innerHeight / 2) menu.classList.add("dd-menu-up");
       setTimeout(() => document.addEventListener("click", onDoc, true), 0);
     }
     btn.addEventListener("click", abrir);
@@ -343,7 +352,7 @@
     function pintar() {
       cont.textContent = "";
       cont.append(
-        el("h2", {}, t.emoji ? el("span", { class: "modal-emoji" }, t.emoji) : icon("key"), t.nombre),
+        el("h2", {}, icon("key"), t.nombre),
         el("p", { class: "sub" }, "Usuarios y contraseñas de esta herramienta. Se guardan solo en este navegador — nunca se suben a GitHub."));
       cont.append(entry.cuentas.length
         ? el("div", { class: "cuentas" }, entry.cuentas.map(cuentaCard))
@@ -421,35 +430,22 @@
   }
 
   /* Campos compartidos por los dos modales. Devuelve un nodo. */
-  function camposHerramienta(t, repintar, { idEditable, catsExtra }) {
+  function camposHerramienta(t) {
     const wrap = el("div");
     const campo = (label, key, tag) => {
       const inp = el(tag || "input", tag === "textarea" ? { rows: "3" } : {});
       inp.value = t[key] ?? "";
-      inp.addEventListener("input", () => {
-        t[key] = inp.value;
-        if (idEditable && key === "nombre" && !t._idManual) { t.id = slug(inp.value); if (idInp) idInp.value = t.id; }
-      });
+      inp.addEventListener("input", () => { t[key] = inp.value; });
       return el("div", { class: "campo" }, el("label", {}, label), inp);
     };
 
     wrap.append(campo("Nombre", "nombre"));
     wrap.append(campo("Descripción — para qué sirve", "descripcion", "textarea"));
 
-    const idInp = el("input", { value: t.id || "", ...(idEditable ? {} : { disabled: "disabled" }) });
-    idInp.addEventListener("input", () => { t._idManual = true; t.id = slug(idInp.value); });
-    wrap.append(el("div", { class: "campo" }, el("label", {}, "Identificador" + (idEditable ? " (= nombre del repo en GitHub, si aplica)" : "")), idInp));
-
-    const cats = [...new Set([...CAT, ...(catsExtra || [])])].filter(Boolean);
-    const dlId = "cats-dl-" + Math.random().toString(36).slice(2, 7);
-    const catInp = el("input", { list: dlId, value: t.categoria || "" });
-    catInp.addEventListener("input", () => (t.categoria = catInp.value));
-    const emojiInp = el("input", { value: t.emoji || "", maxlength: "4", style: "text-align:center" });
-    emojiInp.addEventListener("input", () => (t.emoji = emojiInp.value));
-    wrap.append(el("div", { class: "fila" },
-      el("div", { class: "campo", style: "flex:2 1 180px" }, el("label", {}, "Categoría"), catInp,
-        el("datalist", { id: dlId }, cats.map((c) => el("option", { value: c })))),
-      el("div", { class: "campo", style: "flex:0 0 64px" }, el("label", {}, "Emoji"), emojiInp)));
+    const cats = [...new Set([...CATEGORIAS_BASE, ...CAT, t.categoria])].filter(Boolean);
+    if (!cats.includes(t.categoria)) t.categoria = "Por clasificar";
+    wrap.append(el("div", { class: "campo" }, el("span", { class: "lbl" }, "Categoría"),
+      dropdown({ options: cats.map((c) => ({ value: c, label: c })), value: t.categoria || "Por clasificar", ariaLabel: "Categoría", onChange: (v) => (t.categoria = v) })));
 
     wrap.append(el("div", { class: "campo" }, el("span", { class: "lbl" }, "Estado"),
       segmented({ options: ["activo", "beta", "borrador", "archivado"].map((s) => ({ value: s, label: s })), value: t.estado, onChange: (v) => (t.estado = v) })));
@@ -493,9 +489,9 @@
       copia.push(t);
     }
     const cont = el("div", {},
-      el("h2", {}, icon("pencil"), el("span", {}, (t.emoji ? t.emoji + "  " : "") + (t.nombre || t.id))),
+      el("h2", {}, icon("pencil"), el("span", {}, t.nombre || t.id)),
       el("p", { class: "sub" }, "Estás editando solo esta herramienta. Los cambios se guardan en tu navegador; para publicarlos a todos, descarga tools.json y súbelo al repositorio."),
-      camposHerramienta(t, null, { idEditable: false, catsExtra: copia.map((x) => x.categoria) }),
+      camposHerramienta(t),
       el("div", { class: "modal-acciones" },
         el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: () => persistirCatalogo(copia, { recargarGitHub: true }) }, icon("check"), "Guardar cambios"),
         el("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => descargar("tools.json", archivoCatalogo(copia)) }, icon("download"), "Descargar tools.json"),
@@ -526,7 +522,7 @@
     abrirModal(el("div", {},
       el("h2", {}, icon("plus"), "Nueva herramienta"),
       el("p", { class: "sub" }, "Se agrega al catálogo de tu navegador. Para que la vean todos, descarga tools.json y súbelo al repositorio."),
-      camposHerramienta(t, null, { idEditable: true, catsExtra: copia.map((x) => x.categoria) }),
+      camposHerramienta(t),
       el("div", { class: "modal-acciones" },
         el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: crear }, icon("check"), "Crear herramienta"),
         el("button", { class: "btn btn-quiet btn-sm", type: "button", onclick: cerrarModal }, "Cancelar"))));

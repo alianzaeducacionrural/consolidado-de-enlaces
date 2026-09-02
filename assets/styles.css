@@ -259,11 +259,11 @@ input, textarea { font: inherit; }
 
 .reg-marca {
   flex: none; width: 40px; height: 40px;
-  display: grid; place-items: center; font-size: 19px;
-  border: 1px solid var(--line); border-radius: 50%;
-  color: var(--ink-3);
+  display: grid; place-items: center;
+  font-family: var(--f-serif); font-weight: 600; font-size: 20px;
+  border: 1px solid var(--line-strong); border-radius: 50%;
+  color: var(--gold); background: var(--gold-wash);
 }
-.reg-marca:empty::after { content: "§"; font-family: var(--f-serif); font-size: 17px; color: var(--ink-4); }
 
 .reg-cuerpo { flex: 1; min-width: 0; }
 .reg-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -434,16 +434,18 @@ input, textarea { font: inherit; }
 .dd-btn > .ic:last-child { font-size: 15px; color: var(--ink-3); transition: transform .16s ease; }
 .dd-btn[aria-expanded="true"] > .ic:last-child { transform: rotate(180deg); }
 .dd-menu {
-  position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0;
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0;
+  min-width: 100%; width: max-content; max-width: 260px;
   max-height: 264px; overflow-y: auto;
   background: var(--panel-3); border: 1px solid var(--line-strong);
   border-radius: var(--r-xs); padding: 4px;
   box-shadow: var(--shadow);
 }
+.dd-menu.dd-menu-right { left: auto; right: 0; }
 .dd-menu.dd-menu-up { top: auto; bottom: calc(100% + 4px); }
 .dd-opt {
-  display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 8px 9px; border: 0; border-radius: var(--r-xs);
+  display: flex; align-items: center; justify-content: flex-start; gap: 9px; width: 100%;
+  padding: 8px 9px; border: 0; border-radius: var(--r-xs); white-space: nowrap; text-align: left;
   background: transparent; font-size: 13px; cursor: pointer; text-align: left; color: var(--ink);
 }
 .dd-opt:hover { background: var(--gold-wash); }
