@@ -174,7 +174,12 @@
     };
   }
 
+  // Traer automáticamente los repos de GitHub que no estén en el catálogo,
+  // mostrándolos como "Por clasificar". Desactivado: solo se ve lo que agregues.
+  const DESCUBRIR_GITHUB = !!(window.CDE_OPCIONES && window.CDE_OPCIONES.descubrirGitHub);
+
   async function enriquecerGitHub() {
+    if (!DESCUBRIR_GITHUB) return;
     const res = await fetch(`https://api.github.com/users/${OWNER}/repos?per_page=100&sort=updated`, { headers: { Accept: "application/vnd.github+json" } });
     if (!res.ok) return;
     const repos = await res.json();
@@ -237,7 +242,7 @@
     const vac = $("#vacio");
     vac.hidden = vis.length > 0;
     vac.textContent = TOOLS.length === 0
-      ? "Cargando herramientas desde GitHub…"
+      ? "Todavía no hay herramientas. Pulsa «Agregar herramienta» para crear la primera."
       : (busqueda.trim() ? "Ninguna herramienta coincide con la búsqueda." : "No hay herramientas en esta categoría.");
 
     const orden = (arr) => arr.sort((a, b) => (b.destacado - a.destacado) || a.nombre.localeCompare(b.nombre, "es"));

@@ -24,3 +24,9 @@ window.CDE_BACKEND = {
   // con la app web "para cualquier usuario", quien tenga la URL las vería.
   sincronizarClaves: false,
 };
+
+window.CDE_OPCIONES = {
+  // Mostrar automáticamente los repos de GitHub que no estén en el catálogo,
+  // como "Por clasificar". En false solo se ve lo que agregues a mano.
+  descubrirGitHub: false,
+};
