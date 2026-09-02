@@ -505,7 +505,7 @@
 
   /* ---------- init ---------- */
   $$("[data-ic]").forEach((s) => { s.innerHTML = svg(s.dataset.ic); });
-  aplicarTema(localStorage.getItem(LS_TEMA) || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"), false);
+  aplicarTema(localStorage.getItem(LS_TEMA) === "light" ? "light" : "dark", false);
 
   $("#q").addEventListener("input", (e) => { busqueda = e.target.value; renderLista(); });
   $("#btnTema").addEventListener("click", () => aplicarTema(document.documentElement.dataset.tema === "dark" ? "light" : "dark", true));
