@@ -5,8 +5,8 @@
   const OWNER = "alianzaeducacionrural";
   const IGNORAR_REPOS = new Set(["consolidado-de-enlaces", "alianzaeducacionrural.github.io"]);
   const BACKEND = (window.CDE_BACKEND && window.CDE_BACKEND.url) ? window.CDE_BACKEND : null;
-  const LS_CRED = "cde.credenciales.v1";
-  const LS_CAT = "cde.catalogo.v1";
+  const ACCESO = (window.CDE_ACCESO && window.CDE_ACCESO.clave) || "";
+  const LS_ACCESO = "cde.acceso.v1";
   const LS_TEMA = "cde.tema";
   const LS_FILTRO = "cde.filtro";
 
@@ -74,28 +74,19 @@
   /* ---------- estado ---------- */
   let CAT = [];
   let TOOLS = [];
+  let CREDS = {};
   let ARCHIVO = null;
   let filtro = localStorage.getItem(LS_FILTRO) || "Todas";
   let busqueda = "";
 
-  /* ---------- credenciales ---------- */
-  const leerCred = () => { try { return JSON.parse(localStorage.getItem(LS_CRED)) || {}; } catch { return {}; } };
-  const guardarCred = (o) => localStorage.setItem(LS_CRED, JSON.stringify(o));
-  const credDe = (id) => leerCred()[id] || { cuentas: [] };
+  /* ---------- credenciales (se guardan en la hoja de Google, no en el navegador) ---------- */
+  const credsArray = () => Object.entries(CREDS).map(([k, v]) => ({ id: k, cuentas: v.cuentas || [] }));
+  const credDe = (id) => CREDS[id] || { cuentas: [] };
   const setCredDe = (id, entry) => {
-    const all = leerCred();
-    if (!entry.cuentas || !entry.cuentas.length) delete all[id]; else all[id] = { cuentas: entry.cuentas };
-    guardarCred(all);
-    if (BACKEND && window.CDE_BACKEND.sincronizarClaves) {
-      backendPost({ accion: "guardarCredenciales", credenciales: Object.entries(all).map(([k, v]) => ({ id: k, cuentas: v.cuentas || [] })) });
-    }
+    if (!entry.cuentas || !entry.cuentas.length) delete CREDS[id]; else CREDS[id] = { cuentas: entry.cuentas };
+    backendPost({ accion: "guardarCredenciales", credenciales: credsArray() });
   };
-  const tieneCred = (id) => { const c = leerCred()[id]; return !!c && c.cuentas && c.cuentas.length > 0; };
-
-  /* ---------- catálogo local ---------- */
-  const leerCat = () => { try { return JSON.parse(localStorage.getItem(LS_CAT)); } catch { return null; } };
-  const guardarCat = (o) => localStorage.setItem(LS_CAT, JSON.stringify(o));
-  const hayCatLocal = () => !!localStorage.getItem(LS_CAT);
+  const tieneCred = (id) => { const c = CREDS[id]; return !!c && c.cuentas && c.cuentas.length > 0; };
 
   /* ---------- tema ---------- */
   function aplicarTema(t, persistir) {
@@ -116,7 +107,7 @@
     return d;
   }
   async function backendPost(body) {
-    if (!BACKEND) return;
+    if (!BACKEND) { alert("No hay una hoja de Google conectada (falta configurar assets/config.js)."); return false; }
     try {
       const res = await fetch(BACKEND.url, {
         method: "POST",
@@ -124,9 +115,11 @@
         body: JSON.stringify({ token: BACKEND.token || "", ...body }),
       });
       const d = await res.json();
-      if (!d.ok) alert("La hoja no aceptó el cambio: " + (d.error || "?"));
+      if (!d.ok) { alert("La hoja no aceptó el cambio: " + (d.error || "?")); return false; }
+      return true;
     } catch (e) {
-      alert("No se pudo conectar con la hoja. El cambio quedó guardado en este navegador.");
+      alert("No se pudo conectar con la hoja de Google. El cambio no quedó guardado — revisa tu conexión e intenta de nuevo.");
+      return false;
     }
   }
 
@@ -142,18 +135,18 @@
         const d = await backendGet();
         CAT = [...new Set([...CATEGORIAS_BASE, ...(d.categorias || [])])];
         TOOLS = (d.herramientas || []).map(normalizar).filter((t) => !t.oculto);
-        guardarCat({ categorias: CAT, herramientas: d.herramientas || [] });
+        CREDS = {};
+        (d.credenciales || []).forEach((c) => { if (c && c.cuentas && c.cuentas.length) CREDS[c.id] = { cuentas: c.cuentas }; });
         render();
         enriquecerGitHub().catch(() => {});
         return;
       } catch (e) {
-        console.warn("Backend no disponible, uso datos locales:", e);
+        console.warn("Backend no disponible, uso el catálogo del repositorio (sin poder guardar cambios):", e);
       }
     }
 
-    const fuente = leerCat() || ARCHIVO;
-    CAT = fuente.categorias || [];
-    TOOLS = (fuente.herramientas || []).map(normalizar).filter((t) => !t.oculto);
+    CAT = ARCHIVO.categorias || CATEGORIAS_BASE;
+    TOOLS = (ARCHIVO.herramientas || []).map(normalizar).filter((t) => !t.oculto);
     render();
     enriquecerGitHub().catch(() => {});
   }
@@ -187,7 +180,6 @@
     const conocidos = new Set([
       ...TOOLS.map((t) => t.id.toLowerCase()),
       ...((ARCHIVO?.herramientas) || []).map((t) => t.id.toLowerCase()),
-      ...((leerCat()?.herramientas) || []).map((t) => t.id.toLowerCase()),
     ]);
     let nuevos = 0;
     for (const r of repos) {
@@ -404,46 +396,36 @@
       cont.textContent = "";
       cont.append(
         el("h2", {}, icon("key"), t.nombre),
-        el("p", { class: "sub" }, "Usuarios y contraseñas de esta herramienta. Se guardan solo en este navegador — nunca se suben a GitHub."));
+        el("p", { class: "sub" }, "Usuarios y contraseñas de esta herramienta. Se guardan en la hoja de Google conectada — no en este navegador."));
       cont.append(entry.cuentas.length
         ? el("div", { class: "cuentas" }, entry.cuentas.map(cuentaCard))
         : el("p", { class: "cuenta-vacia" }, "Todavía no has guardado ninguna cuenta."));
       cont.append(el("div", { class: "modal-acciones" },
         el("button", { class: "btn btn-line btn-sm", type: "button", onclick: () => { entry.cuentas.push({ usuario: "", clave: "", notas: "" }); pintar(); } }, icon("plus"), "Agregar cuenta"),
         el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: () => guardar(true) }, icon("check"), "Guardar y cerrar")));
-      cont.append(el("p", { class: "mini-aviso" }, icon("lock"), "Cualquiera que use este navegador puede ver estas claves. Úsalo en tu equipo personal."));
+      cont.append(el("p", { class: "mini-aviso" }, icon("lock"), "Se guardan en texto plano en la hoja del backend. Cualquiera con la clave de este sitio puede verlas."));
     }
     pintar();
     abrirModal(cont);
   }
 
-  /* ---------- modal: exportar / importar claves ---------- */
+  /* ---------- modal: claves guardadas (resumen + respaldo) ---------- */
   function modalClavesGlobal() {
-    const n = Object.keys(leerCred()).length;
+    const n = Object.keys(CREDS).length;
     abrirModal(el("div", {},
       el("h2", {}, icon("key"), "Claves guardadas"),
-      el("p", { class: "sub" }, `Tienes claves para ${n} herramienta(s), guardadas solo en este navegador.`),
-      el("h3", {}, "Mover a otro equipo"),
-      el("p", { class: "sub" }, "Exporta un archivo, cópialo al otro equipo y ahí impórtalo. El archivo lleva las contraseñas en texto plano: guárdalo con cuidado y bórralo al terminar."),
+      el("p", { class: "sub" }, `Tienes claves para ${n} herramienta(s), guardadas en la hoja de Google conectada — se ven igual desde cualquier equipo.`),
+      el("h3", {}, "Respaldo"),
+      el("p", { class: "sub" }, "Descarga una copia en texto plano por si acaso. Guárdala con cuidado y bórrala al terminar."),
       el("div", { class: "modal-acciones" },
-        el("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => descargar("claves-consolidado.json", leerCred()) }, icon("download"), "Exportar"),
-        el("button", { class: "btn btn-line btn-sm", type: "button", onclick: () => $("#importFile").click() }, icon("upload"), "Importar"),
-        el("button", { class: "btn btn-danger btn-sm", type: "button", onclick: () => { if (confirm("¿Borrar TODAS las claves guardadas en este navegador?")) { localStorage.removeItem(LS_CRED); cerrarModal(); renderLista(); } } }, icon("trash"), "Borrar todo"))));
+        el("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => descargar("claves-consolidado.json", CREDS) }, icon("download"), "Descargar copia"),
+        el("button", { class: "btn btn-danger btn-sm", type: "button", onclick: () => {
+          if (!confirm("¿Borrar TODAS las claves guardadas en la hoja de Google? Esto no se puede deshacer.")) return;
+          CREDS = {};
+          backendPost({ accion: "guardarCredenciales", credenciales: [] });
+          cerrarModal(); renderLista();
+        } }, icon("trash"), "Borrar todo"))));
   }
-  $("#importFile").addEventListener("change", (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const obj = JSON.parse(r.result);
-        if (typeof obj !== "object" || Array.isArray(obj)) throw 0;
-        guardarCred({ ...leerCred(), ...obj });
-        cerrarModal(); renderLista(); alert("Claves importadas.");
-      } catch { alert("El archivo no es válido."); }
-      e.target.value = "";
-    };
-    r.readAsText(f);
-  });
 
   /* ============================================================
      Catálogo — funciones independientes: editar / nueva
@@ -473,10 +455,8 @@
   function persistirCatalogo(copia, { recargarGitHub } = {}) {
     copia.forEach((x) => { if (!x.id) x.id = slug(x.nombre) || "herramienta"; });
     const archivo = archivoCatalogo(copia);
-    guardarCat(archivo);
-    const f = leerCat();
-    CAT = f.categorias;
-    TOOLS = f.herramientas.map(normalizar).filter((x) => !x.oculto);
+    CAT = archivo.categorias;
+    TOOLS = archivo.herramientas.map(normalizar).filter((x) => !x.oculto);
     render(); cerrarModal();
     if (recargarGitHub) enriquecerGitHub().catch(() => {});
     backendPost({ accion: "guardarHerramientas", herramientas: archivo.herramientas });
@@ -543,17 +523,16 @@
     }
     const cont = el("div", {},
       el("h2", {}, icon("pencil"), el("span", {}, t.nombre || t.id)),
-      el("p", { class: "sub" }, "Estás editando solo esta herramienta. Los cambios se guardan en tu navegador; para publicarlos a todos, descarga tools.json y súbelo al repositorio."),
+      el("p", { class: "sub" }, "Estás editando solo esta herramienta. Al guardar, el cambio queda en la hoja de Google y lo ve cualquiera que abra el sitio."),
       camposHerramienta(t),
       el("div", { class: "modal-acciones" },
         el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: () => persistirCatalogo(copia, { recargarGitHub: true }) }, icon("check"), "Guardar cambios"),
-        el("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => descargar("tools.json", archivoCatalogo(copia)) }, icon("download"), "Descargar tools.json"),
+        el("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => descargar("tools.json", archivoCatalogo(copia)) }, icon("download"), "Descargar copia"),
         el("button", { class: "btn btn-danger btn-sm", type: "button", onclick: () => {
           if (!confirm(`¿Quitar "${t.nombre || t.id}" del catálogo?`)) return;
           const j = copia.findIndex((x) => x === t); if (j >= 0) copia.splice(j, 1);
           persistirCatalogo(copia);
-        } }, icon("trash"), "Quitar")),
-      hayCatLocal() ? el("button", { class: "btn btn-quiet btn-sm", type: "button", style: "margin-top:8px", onclick: () => { if (confirm("¿Descartar TUS cambios locales y volver al catálogo del repositorio?")) { localStorage.removeItem(LS_CAT); cerrarModal(); cargar(); } } }, icon("rotate"), "Descartar mis cambios locales") : null);
+        } }, icon("trash"), "Quitar")));
     abrirModal(cont);
   }
 
@@ -574,7 +553,7 @@
 
     abrirModal(el("div", {},
       el("h2", {}, icon("plus"), "Nueva herramienta"),
-      el("p", { class: "sub" }, "Se agrega al catálogo de tu navegador. Para que la vean todos, descarga tools.json y súbelo al repositorio."),
+      el("p", { class: "sub" }, "Se guarda en la hoja de Google conectada — la verán todos los que abran el sitio."),
       camposHerramienta(t),
       el("div", { class: "modal-acciones" },
         el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: crear }, icon("check"), "Crear herramienta"),
@@ -588,19 +567,53 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
-  /* ---------- init ---------- */
+  /* ---------- iconos (siempre, incluso detrás de la clave de acceso) ---------- */
   $$("[data-ic]").forEach((s) => { s.innerHTML = svg(s.dataset.ic); });
-  aplicarTema(localStorage.getItem(LS_TEMA) === "light" ? "light" : "dark", false);
 
-  $("#q").addEventListener("input", (e) => { busqueda = e.target.value; render(); });
-  $("#btnTema").addEventListener("click", () => aplicarTema(document.documentElement.dataset.tema === "dark" ? "light" : "dark", true));
-  $("#btnClaves").addEventListener("click", modalClavesGlobal);
-  $("#btnAgregar").addEventListener("click", modalNuevaHerramienta);
+  /* ---------- acceso con clave ---------- */
+  function desbloquear() {
+    try { localStorage.setItem(LS_ACCESO, "ok"); } catch {}
+    document.documentElement.setAttribute("data-acceso", "ok");
+    iniciarApp();
+  }
 
-  const railToggle = () => { const open = document.body.classList.toggle("rail-abierto"); $("#railScrim").hidden = !open; };
-  $("#railToggle").addEventListener("click", railToggle);
-  $("#railScrim").addEventListener("click", cerrarRail);
-  addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("rail-abierto")) cerrarRail(); });
+  function iniciarGate() {
+    const gate = $("#gate");
+    const caja = $(".gate-caja", gate);
+    const input = $("#gateClave", gate);
+    const err = $("#gateError", gate);
+    setTimeout(() => input.focus(), 60);
+    $("#gateForm", gate).addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (input.value === ACCESO) { desbloquear(); return; }
+      err.hidden = false;
+      input.value = "";
+      input.focus();
+      caja.classList.remove("temblar"); void caja.offsetWidth; caja.classList.add("temblar");
+    });
+  }
 
-  cargar().catch((err) => { $("#lista").innerHTML = `<p class="estado-vacio">No se pudo cargar <code>data/tools.json</code>.<br>${String(err)}</p>`; });
+  /* ---------- init ---------- */
+  function iniciarApp() {
+    aplicarTema(localStorage.getItem(LS_TEMA) === "light" ? "light" : "dark", false);
+
+    $("#q").addEventListener("input", (e) => { busqueda = e.target.value; render(); });
+    $("#btnTema").addEventListener("click", () => aplicarTema(document.documentElement.dataset.tema === "dark" ? "light" : "dark", true));
+    $("#btnClaves").addEventListener("click", modalClavesGlobal);
+    $("#btnAgregar").addEventListener("click", modalNuevaHerramienta);
+
+    const railToggle = () => { const open = document.body.classList.toggle("rail-abierto"); $("#railScrim").hidden = !open; };
+    $("#railToggle").addEventListener("click", railToggle);
+    $("#railScrim").addEventListener("click", cerrarRail);
+    addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("rail-abierto")) cerrarRail(); });
+
+    cargar().catch((err) => { $("#lista").innerHTML = `<p class="estado-vacio">No se pudo cargar el catálogo.<br>${String(err)}</p>`; });
+  }
+
+  if (!ACCESO || localStorage.getItem(LS_ACCESO) === "ok") {
+    document.documentElement.setAttribute("data-acceso", "ok");
+    iniciarApp();
+  } else {
+    iniciarGate();
+  }
 })();

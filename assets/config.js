@@ -18,15 +18,16 @@
 window.CDE_BACKEND = {
   url: "https://script.google.com/macros/s/AKfycbx4HkzVEmuf_sdIK9l0HqbYYqfhMDkb8MjKLJu3QHw5paa9jOt63AgqSkxnDIbeSzl-/exec",
   token: "610d45cb7ffa490c89ac43f56c07e926",
-
-  // Guardar también las contraseñas en la hoja (pestaña "Credenciales").
-  // Déjalo en false salvo que el acceso a la hoja esté bien restringido:
-  // con la app web "para cualquier usuario", quien tenga la URL las vería.
-  sincronizarClaves: false,
 };
 
 window.CDE_OPCIONES = {
   // Mostrar automáticamente los repos de GitHub que no estén en el catálogo,
   // como "Por clasificar". En false solo se ve lo que agregues a mano.
   descubrirGitHub: false,
+};
+
+// Clave para entrar al sitio. Se pide una vez por navegador.
+// Cámbiala aquí cuando quieras rotarla (súbelo al repositorio después).
+window.CDE_ACCESO = {
+  clave: "admin2026*",
 };
