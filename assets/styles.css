@@ -527,8 +527,15 @@ input, textarea { font: inherit; }
 .cuenta { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 13px; background: var(--panel-2); }
 .cuenta-cab { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .cuenta-num { font-family: var(--f-mono); font-size: 9.5px; font-weight: 500; color: var(--gold); text-transform: uppercase; letter-spacing: 0.12em; }
-.cuenta-del { border: 0; background: transparent; cursor: pointer; color: var(--ink-3); width: 27px; height: 27px; display: grid; place-items: center; border-radius: var(--r-xs); }
-.cuenta-del:hover { color: var(--rose); }
+.cuenta-acc { display: flex; gap: 1px; }
+.cuenta-acc button { border: 0; background: transparent; cursor: pointer; color: var(--ink-3); width: 27px; height: 27px; display: grid; place-items: center; border-radius: var(--r-xs); }
+.cuenta-acc button:hover { color: var(--gold); }
+.cuenta-acc button.peligro:hover { color: var(--rose); }
+.cuenta-editando { border-color: var(--line-strong); }
+
+.cred-vista-txt { flex: 1; min-width: 0; padding: 9px 0; font-size: 13px; color: var(--ink); font-family: var(--f-mono); overflow-wrap: anywhere; }
+.cred-vista-txt.sans { font-family: var(--f-sans); }
+.cred-vista-txt.vacio { color: var(--ink-4); font-style: italic; font-family: var(--f-sans); }
 
 .cred-fila {
   display: flex; align-items: center; gap: 9px;

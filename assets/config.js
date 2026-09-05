@@ -27,7 +27,10 @@ window.CDE_OPCIONES = {
 };
 
 // Clave para entrar al sitio. Se pide una vez por navegador.
-// Cámbiala aquí cuando quieras rotarla (súbelo al repositorio después).
+// Cámbialas aquí cuando quieras rotarlas (súbelo al repositorio después).
 window.CDE_ACCESO = {
   clave: "admin2026*",
+  // Clave adicional para VER las claves guardadas de cada herramienta.
+  // Se pide una vez por pestaña del navegador (se olvida al cerrarla).
+  claveCredenciales: "alejo0514*",
 };

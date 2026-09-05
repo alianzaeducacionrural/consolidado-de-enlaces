@@ -259,7 +259,7 @@
 
   function fila(t) {
     const acc = el("div", { class: "reg-acc" },
-      el("button", { class: "icobtn" + (tieneCred(t.id) ? " on" : ""), type: "button", "aria-label": "Claves", title: tieneCred(t.id) ? "Ver claves guardadas" : "Guardar usuario y contraseña", onclick: () => modalClavesTool(t) }, icon("key")),
+      el("button", { class: "icobtn" + (tieneCred(t.id) ? " on" : ""), type: "button", "aria-label": "Claves", title: tieneCred(t.id) ? "Ver claves guardadas" : "Guardar usuario y contraseña", onclick: () => abrirCredencialesConClave(t) }, icon("key")),
       el("button", { class: "icobtn", type: "button", "aria-label": "Editar", title: "Editar esta herramienta", onclick: () => modalEditarHerramienta(t.id) }, icon("pencil")));
 
     const cab = el("div", { class: "reg-cab" },
@@ -352,18 +352,27 @@
   }
 
   /* ---------- modal: claves de una herramienta ---------- */
+  const idCorto = () => Math.random().toString(36).slice(2, 9);
+
   function modalClavesTool(t) {
     const entry = structuredClone(credDe(t.id));
     entry.cuentas ||= [];
+    entry.cuentas.forEach((c) => { c._id = idCorto(); });
+    const modoEdicion = new Set(); // ids de cuentas mostrando el formulario
+    const nuevos = new Set();      // ids de cuentas que aún no existen en la hoja
+    const respaldo = new Map();    // id -> valores antes de editar (para cancelar)
+    const revelados = new Set();   // ids con la contraseña visible en la vista estática
     const cont = el("div");
 
     const guardar = (cerrar) => {
       const limpio = entry.cuentas
         .map((c) => ({ usuario: (c.usuario || "").trim(), clave: (c.clave || "").trim(), notas: (c.notas || "").trim() }))
         .filter((c) => c.usuario || c.clave || c.notas);
+      entry.cuentas = limpio.map((c) => ({ ...c, _id: idCorto() }));
+      modoEdicion.clear(); nuevos.clear(); respaldo.clear();
       setCredDe(t.id, { cuentas: limpio });
       renderLista();
-      if (cerrar) cerrarModal();
+      if (cerrar) cerrarModal(); else pintar();
     };
 
     function credFila(icName, ph, key, c, tipo) {
@@ -380,16 +389,58 @@
       return el("label", { class: "cred-fila" }, icon(icName), inp, acc);
     }
 
-    function cuentaCard(c, i) {
-      const notas = el("textarea", { rows: "2", placeholder: "Notas: para qué sirve, permisos, a quién pertenece…", value: c.notas || "" });
-      notas.addEventListener("input", () => (c.notas = notas.value));
+    function campoVista(icName, valor, opts = {}) {
+      const mostrar = opts.esClave && opts.oculto ? "•".repeat(10) : valor;
+      const txt = el("span", { class: "cred-vista-txt" + (opts.mono === false ? " sans" : "") + (!valor ? " vacio" : "") }, valor ? mostrar : "—");
+      const acc = el("div", { class: "cred-acc" });
+      if (opts.esClave && valor) acc.append(el("button", { type: "button", "aria-label": "Mostrar u ocultar", html: svg(opts.oculto ? "eye" : "eyeoff"), onclick: opts.onToggle }));
+      if (valor) acc.append(el("button", { type: "button", "aria-label": "Copiar", html: svg("copy"), onclick: (e) => copiar(valor, e.currentTarget) }));
+      return el("div", { class: "cred-fila" }, icon(icName), txt, acc);
+    }
+
+    function cuentaVista(c, i) {
+      const oculto = !revelados.has(c._id);
       return el("div", { class: "cuenta" },
         el("div", { class: "cuenta-cab" },
           el("span", { class: "cuenta-num" }, `Cuenta ${i + 1}`),
-          el("button", { class: "cuenta-del", type: "button", "aria-label": "Eliminar cuenta", title: "Eliminar esta cuenta", html: svg("trash"), onclick: () => { entry.cuentas.splice(i, 1); guardar(false); pintar(); } })),
+          el("div", { class: "cuenta-acc" },
+            el("button", { type: "button", "aria-label": "Editar cuenta", title: "Editar", html: svg("pencil"), onclick: () => { respaldo.set(c._id, { usuario: c.usuario, clave: c.clave, notas: c.notas }); modoEdicion.add(c._id); pintar(); } }),
+            el("button", { class: "peligro", type: "button", "aria-label": "Eliminar cuenta", title: "Eliminar esta cuenta", html: svg("trash"), onclick: () => {
+              const idx = entry.cuentas.findIndex((x) => x._id === c._id);
+              if (idx >= 0) entry.cuentas.splice(idx, 1);
+              guardar(false);
+            } }))),
+        campoVista("user", c.usuario),
+        campoVista("lock", c.clave, { esClave: true, oculto, onToggle: () => { if (revelados.has(c._id)) revelados.delete(c._id); else revelados.add(c._id); pintar(); } }),
+        c.notas ? campoVista("note", c.notas, { mono: false }) : null);
+    }
+
+    function cuentaEdicion(c, i) {
+      const notas = el("textarea", { rows: "2", placeholder: "Notas: para qué sirve, permisos, a quién pertenece…", value: c.notas || "" });
+      notas.addEventListener("input", () => (c.notas = notas.value));
+      const esNueva = nuevos.has(c._id);
+      return el("div", { class: "cuenta cuenta-editando" },
+        el("div", { class: "cuenta-cab" },
+          el("span", { class: "cuenta-num" }, `Cuenta ${i + 1}`),
+          el("div", { class: "cuenta-acc" },
+            el("button", { type: "button", "aria-label": "Guardar cuenta", title: "Guardar", html: svg("check"), onclick: () => guardar(false) }),
+            el("button", { class: "peligro", type: "button", "aria-label": esNueva ? "Quitar" : "Cancelar", title: esNueva ? "Quitar" : "Cancelar edición", html: svg(esNueva ? "trash" : "x"), onclick: () => {
+              if (esNueva) {
+                const idx = entry.cuentas.findIndex((x) => x._id === c._id);
+                if (idx >= 0) entry.cuentas.splice(idx, 1);
+              } else if (respaldo.has(c._id)) {
+                Object.assign(c, respaldo.get(c._id));
+              }
+              modoEdicion.delete(c._id); nuevos.delete(c._id); respaldo.delete(c._id);
+              pintar();
+            } }))),
         credFila("user", "Usuario o correo", "usuario", c),
         credFila("lock", "Contraseña", "clave", c, "password"),
         el("label", { class: "cred-fila cred-fila-notas" }, icon("note"), notas));
+    }
+
+    function cuentaCard(c, i) {
+      return modoEdicion.has(c._id) ? cuentaEdicion(c, i) : cuentaVista(c, i);
     }
 
     function pintar() {
@@ -401,12 +452,46 @@
         ? el("div", { class: "cuentas" }, entry.cuentas.map(cuentaCard))
         : el("p", { class: "cuenta-vacia" }, "Todavía no has guardado ninguna cuenta."));
       cont.append(el("div", { class: "modal-acciones" },
-        el("button", { class: "btn btn-line btn-sm", type: "button", onclick: () => { entry.cuentas.push({ usuario: "", clave: "", notas: "" }); pintar(); } }, icon("plus"), "Agregar cuenta"),
+        el("button", { class: "btn btn-line btn-sm", type: "button", onclick: () => { const nc = { usuario: "", clave: "", notas: "", _id: idCorto() }; entry.cuentas.push(nc); nuevos.add(nc._id); modoEdicion.add(nc._id); pintar(); } }, icon("plus"), "Agregar cuenta"),
         el("button", { class: "btn btn-leaf btn-sm", type: "button", onclick: () => guardar(true) }, icon("check"), "Guardar y cerrar")));
       cont.append(el("p", { class: "mini-aviso" }, icon("lock"), "Se guardan en texto plano en la hoja del backend. Cualquiera con la clave de este sitio puede verlas."));
     }
     pintar();
     abrirModal(cont);
+  }
+
+  /* ---------- clave adicional para VER las claves de una herramienta ---------- */
+  const SS_ACCESO_CLAVES = "cde.acceso-claves.v1";
+  function abrirCredencialesConClave(t) {
+    const clave = (window.CDE_ACCESO && window.CDE_ACCESO.claveCredenciales) || "";
+    if (!clave || sessionStorage.getItem(SS_ACCESO_CLAVES) === "ok") { modalClavesTool(t); return; }
+
+    const input = el("input", { type: "password", placeholder: "Clave", autocomplete: "off", spellcheck: "false" });
+    const err = el("p", { class: "gate-error", hidden: true }, "Clave incorrecta. Intenta de nuevo.");
+    const caja = el("div");
+    const form = el("form", { class: "gate-form" },
+      el("label", { class: "gate-campo" }, icon("lock"), input),
+      el("button", { class: "btn btn-leaf btn-sm", type: "submit" }, "Ver claves"),
+      err);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (input.value === clave) {
+        try { sessionStorage.setItem(SS_ACCESO_CLAVES, "ok"); } catch {}
+        cerrarModal();
+        modalClavesTool(t);
+        return;
+      }
+      err.hidden = false;
+      input.value = "";
+      input.focus();
+      caja.classList.remove("temblar"); void caja.offsetWidth; caja.classList.add("temblar");
+    });
+    caja.append(
+      el("h2", {}, icon("lock"), "Confirma tu clave"),
+      el("p", { class: "sub" }, `Para ver las claves guardadas de "${t.nombre}", escribe tu clave.`),
+      form);
+    abrirModal(caja);
+    setTimeout(() => input.focus(), 60);
   }
 
   /* ---------- modal: claves guardadas (resumen + respaldo) ---------- */
