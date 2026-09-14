@@ -99,10 +99,11 @@
   }
 
   /* ---------- backend (Google Sheets vía Apps Script) ----------
-     Apps Script a veces falla de forma pasajera (un 404 en el redirect
-     intermedio, un arranque en frío lento). Reintentamos unas veces con
-     una pequeña espera antes de darnos por vencidos. */
-  async function conReintentos(fn, intentos = 3, espera = 700) {
+     Apps Script falla de forma pasajera con más frecuencia de lo esperado
+     (404 en el redirect intermedio hacia googleusercontent.com) — medido en
+     vivo: hasta 3 de cada 5 intentos sueltos. Como cada 404 falla rápido
+     (no cuelga), reintentar varias veces sale barato en tiempo real. */
+  async function conReintentos(fn, intentos = 5, espera = 700) {
     let error;
     for (let i = 0; i < intentos; i++) {
       try { return await fn(); }
