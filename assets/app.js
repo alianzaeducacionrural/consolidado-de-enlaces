@@ -98,57 +98,138 @@
     if (persistir) localStorage.setItem(LS_TEMA, t);
   }
 
-  /* ---------- backend (Google Sheets vía Apps Script) ---------- */
+  /* ---------- backend (Google Sheets vía Apps Script) ----------
+     Apps Script a veces falla de forma pasajera (un 404 en el redirect
+     intermedio, un arranque en frío lento). Reintentamos unas veces con
+     una pequeña espera antes de darnos por vencidos. */
+  async function conReintentos(fn, intentos = 3, espera = 700) {
+    let error;
+    for (let i = 0; i < intentos; i++) {
+      try { return await fn(); }
+      catch (e) {
+        error = e;
+        if (i < intentos - 1) await new Promise((r) => setTimeout(r, espera * (i + 1)));
+      }
+    }
+    throw error;
+  }
+  async function fetchConTiempo(url, opts, ms = 15000) {
+    const ctrl = new AbortController();
+    const id = setTimeout(() => ctrl.abort(), ms);
+    try { return await fetch(url, { ...opts, signal: ctrl.signal }); }
+    finally { clearTimeout(id); }
+  }
+
   async function backendGet() {
-    const u = BACKEND.url + (BACKEND.url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(BACKEND.token || "");
-    const res = await fetch(u, { cache: "no-store", redirect: "follow" });
-    const d = await res.json();
-    if (!d || d.ok === false) throw new Error(d && d.error || "backend");
-    return d;
+    return conReintentos(async () => {
+      const u = BACKEND.url + (BACKEND.url.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(BACKEND.token || "");
+      const res = await fetchConTiempo(u, { cache: "no-store", redirect: "follow" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const d = await res.json();
+      if (!d || d.ok === false) throw new Error((d && d.error) || "backend");
+      return d;
+    });
   }
   async function backendPost(body) {
-    if (!BACKEND) { alert("No hay una hoja de Google conectada (falta configurar assets/config.js)."); return false; }
+    if (!BACKEND) { mostrarToast("No hay una hoja de Google conectada (falta configurar assets/config.js)."); return false; }
     try {
-      const res = await fetch(BACKEND.url, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ token: BACKEND.token || "", ...body }),
+      const d = await conReintentos(async () => {
+        const res = await fetchConTiempo(BACKEND.url, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ token: BACKEND.token || "", ...body }),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
       });
-      const d = await res.json();
-      if (!d.ok) { alert("La hoja no aceptó el cambio: " + (d.error || "?")); return false; }
+      if (!d.ok) { mostrarToast("La hoja no aceptó el cambio: " + (d.error || "?")); return false; }
       return true;
     } catch (e) {
-      alert("No se pudo conectar con la hoja de Google. El cambio no quedó guardado — revisa tu conexión e intenta de nuevo.");
+      mostrarToast("No se pudo guardar en la hoja de Google. Revisa tu conexión e intenta de nuevo.");
       return false;
     }
   }
 
+  /* ---------- avisos (toast, no bloquean como alert()) ---------- */
+  let toastCont = null;
+  function mostrarToast(msg, tipo = "error") {
+    if (!toastCont) { toastCont = el("div", { class: "toast-cont" }); document.body.append(toastCont); }
+    const t = el("div", { class: "toast", "data-tipo": tipo });
+    const cerrar = () => t.remove();
+    t.append(el("span", { class: "toast-txt" }, msg), el("button", { class: "toast-cerrar", type: "button", "aria-label": "Cerrar", onclick: cerrar }, icon("x")));
+    toastCont.append(t);
+    setTimeout(cerrar, 7000);
+  }
+
+  /* ---------- estados de carga: cargando / error / listo ----------
+     Distinguir estos tres estados es lo que evita que un problema de
+     conexión pasajero se vea igual que "no tienes herramientas". */
+  function estadoCargando(msg) {
+    $("#errorCarga").hidden = true;
+    $("#lista").hidden = true;
+    $("#vacio").hidden = true;
+    $("#cargandoMsg").textContent = msg;
+    $("#cargando").hidden = false;
+  }
+  function estadoError(detalle) {
+    $("#cargando").hidden = true;
+    $("#lista").hidden = true;
+    $("#vacio").hidden = true;
+    $("#errorCargaMsg").textContent = detalle;
+    $("#errorCarga").hidden = false;
+  }
+  function estadoListo() {
+    $("#cargando").hidden = true;
+    $("#errorCarga").hidden = true;
+    $("#lista").hidden = false;
+    $("#btnAgregar").disabled = false;
+  }
+
   /* ---------- carga ---------- */
-  async function cargar() {
+  async function cargarLocal() {
     try {
       const res = await fetch("./data/tools.json", { cache: "no-cache" });
       ARCHIVO = await res.json();
     } catch { ARCHIVO = { categorias: [], herramientas: [] }; }
-
-    if (BACKEND) {
-      try {
-        const d = await backendGet();
-        CAT = [...new Set([...CATEGORIAS_BASE, ...(d.categorias || [])])];
-        TOOLS = (d.herramientas || []).map(normalizar).filter((t) => !t.oculto);
-        CREDS = {};
-        (d.credenciales || []).forEach((c) => { if (c && c.cuentas && c.cuentas.length) CREDS[c.id] = { cuentas: c.cuentas }; });
-        render();
-        enriquecerGitHub().catch(() => {});
-        return;
-      } catch (e) {
-        console.warn("Backend no disponible, uso el catálogo del repositorio (sin poder guardar cambios):", e);
-      }
-    }
-
     CAT = ARCHIVO.categorias || CATEGORIAS_BASE;
     TOOLS = (ARCHIVO.herramientas || []).map(normalizar).filter((t) => !t.oculto);
-    render();
-    enriquecerGitHub().catch(() => {});
+  }
+
+  async function cargar() {
+    // Mientras el catálogo no haya terminado de cargar (o esté reintentando),
+    // no se puede crear ni editar: evita pisar el catálogo real de la hoja
+    // con una copia a medio cargar.
+    $("#btnAgregar").disabled = true;
+
+    if (!BACKEND) {
+      await cargarLocal();
+      estadoListo(); render();
+      enriquecerGitHub().catch(() => {});
+      return;
+    }
+
+    estadoCargando("Conectando con la hoja de datos…");
+    const avisoLento = setTimeout(() => {
+      estadoCargando("Esto está tardando más de lo normal — puede que la hoja esté \"despertando\". Seguimos intentando…");
+    }, 2500);
+    const avisoMuyLento = setTimeout(() => {
+      estadoCargando("Sigue sin responder. La primera vez que se usa después de un rato, Google puede tardar hasta medio minuto. Seguimos intentando, no cierres la página…");
+    }, 11000);
+
+    try {
+      const d = await backendGet();
+      clearTimeout(avisoLento); clearTimeout(avisoMuyLento);
+      CAT = [...new Set([...CATEGORIAS_BASE, ...(d.categorias || [])])];
+      TOOLS = (d.herramientas || []).map(normalizar).filter((t) => !t.oculto);
+      CREDS = {};
+      (d.credenciales || []).forEach((c) => { if (c && c.cuentas && c.cuentas.length) CREDS[c.id] = { cuentas: c.cuentas }; });
+      estadoListo(); render();
+      enriquecerGitHub().catch(() => {});
+    } catch (e) {
+      clearTimeout(avisoLento); clearTimeout(avisoMuyLento);
+      console.warn("Backend no disponible tras varios intentos:", e);
+      estadoError("No se pudo conectar con la hoja de datos después de varios intentos. Esto suele ser un problema temporal de conexión — tus herramientas siguen guardadas ahí, no se perdió nada. Vuelve a intentarlo en un momento.");
+    }
   }
 
   function normalizar(t) {
@@ -173,6 +254,10 @@
 
   async function enriquecerGitHub() {
     if (!DESCUBRIR_GITHUB) return;
+    if (!ARCHIVO) {
+      try { ARCHIVO = await (await fetch("./data/tools.json", { cache: "no-cache" })).json(); }
+      catch { ARCHIVO = { categorias: [], herramientas: [] }; }
+    }
     const res = await fetch(`https://api.github.com/users/${OWNER}/repos?per_page=100&sort=updated`, { headers: { Accept: "application/vnd.github+json" } });
     if (!res.ok) return;
     const repos = await res.json();
@@ -691,8 +776,9 @@
     $("#railToggle").addEventListener("click", railToggle);
     $("#railScrim").addEventListener("click", cerrarRail);
     addEventListener("keydown", (e) => { if (e.key === "Escape" && document.body.classList.contains("rail-abierto")) cerrarRail(); });
+    $("#btnReintentar").addEventListener("click", () => cargar());
 
-    cargar().catch((err) => { $("#lista").innerHTML = `<p class="estado-vacio">No se pudo cargar el catálogo.<br>${String(err)}</p>`; });
+    cargar();
   }
 
   if (!ACCESO || localStorage.getItem(LS_ACCESO) === "ok") {

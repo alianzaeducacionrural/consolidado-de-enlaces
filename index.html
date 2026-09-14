@@ -87,6 +87,19 @@
         <span id="pieInfo" class="conteo"></span>
       </div>
 
+      <div id="cargando" class="cargando" hidden>
+        <span class="spinner" aria-hidden="true"></span>
+        <p id="cargandoMsg">Conectando con la hoja de datos…</p>
+      </div>
+
+      <div id="errorCarga" class="error-carga" hidden>
+        <span class="ic" data-ic="rotate" aria-hidden="true"></span>
+        <p id="errorCargaMsg">No se pudo conectar con la hoja de datos.</p>
+        <button id="btnReintentar" class="btn btn-primary btn-sm" type="button">
+          <span class="ic" data-ic="rotate" aria-hidden="true"></span> Reintentar
+        </button>
+      </div>
+
       <div id="lista" class="lista"></div>
       <p id="vacio" class="estado-vacio" hidden>Ninguna herramienta coincide con la búsqueda.</p>
 

@@ -226,6 +226,7 @@ input, textarea { font: inherit; }
 .rail-btn .ic { font-size: 15px; color: var(--ink-3); }
 .rail-btn:hover { color: var(--ink); background: var(--gold-wash); }
 .rail-btn:hover .ic { color: var(--gold); }
+.rail-btn:disabled { opacity: .45; cursor: default; pointer-events: none; box-shadow: none; filter: none; }
 .rail-btn-cta {
   background: var(--gold-grad); color: var(--gold-ink); font-weight: 600;
   box-shadow: 0 6px 18px -8px rgba(201, 162, 75, 0.5);
@@ -387,6 +388,58 @@ input, textarea { font: inherit; }
 .reg-repo .ic { font-size: 11px; }
 
 .estado-vacio { text-align: center; color: var(--ink-3); padding: 60px 0; font-family: var(--f-serif); font-style: italic; font-size: 18px; }
+
+/* ============================================================
+   Carga y error de conexión
+   ============================================================ */
+.cargando {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  padding: 80px 20px; text-align: center;
+}
+.spinner {
+  width: 30px; height: 30px; flex: none;
+  border-radius: 50%; border: 2px solid var(--line-strong); border-top-color: var(--gold);
+  animation: girar .8s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+.cargando p {
+  margin: 0; max-width: 42ch;
+  font-family: var(--f-serif); font-style: italic; font-size: 15px;
+  color: var(--ink-3); line-height: 1.5;
+}
+
+.error-carga {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 70px 20px; text-align: center;
+}
+.error-carga .ic { font-size: 24px; color: var(--gold); }
+.error-carga p { margin: 0; max-width: 46ch; font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+
+/* ============================================================
+   Avisos flotantes (toast)
+   ============================================================ */
+.toast-cont {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  z-index: 700; width: 100%; max-width: 460px; padding: 0 16px;
+  display: flex; flex-direction: column; gap: 8px; align-items: center;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto; width: 100%;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 8px 12px 16px;
+  background: var(--panel-3); border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  box-shadow: var(--shadow); font-size: 12.5px; color: var(--ink); line-height: 1.4;
+  animation: toast-in .2s ease-out;
+}
+.toast[data-tipo="error"] { border-color: var(--rose); }
+.toast-txt { flex: 1; }
+.toast-cerrar {
+  flex: none; width: 26px; height: 26px; display: grid; place-items: center;
+  border: 0; background: none; color: var(--ink-3); cursor: pointer; border-radius: var(--r-xs);
+}
+.toast-cerrar:hover { color: var(--ink); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
 .pie {
   margin-top: 48px; padding-top: 20px;
